@@ -1,19 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 
-const NAV_LINKS = [
-  { label: 'Home', path: '/' },
-  { label: 'Our Works', path: '/portfolio' },
-  { label: 'Contact', path: '/contact' },
-]
-
-const HOURS = [
-  { day: 'Mon – Fri', time: '9:00 AM – 6:00 PM' },
-  { day: 'Saturday', time: '10:00 AM – 4:00 PM' },
-  { day: 'Sunday', time: 'Closed' },
-]
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002'
 
 function useReveal() {
   const ref = useRef(null)
@@ -75,15 +62,8 @@ function ContactCard({ icon, title, children }) {
 }
 
 export default function Contact() {
-  const [scrolled, setScrolled] = useState(false)
   const [contact, setContact] = useState(null)
   const [studioImg, setStudioImg] = useState(null)
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40)
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
 
   useEffect(() => {
     fetch(`${API_URL}/api/contact`)
@@ -126,38 +106,13 @@ export default function Contact() {
           --sans: 'DM Sans', sans-serif;
         }
         html { scroll-behavior: smooth; }
-        .nav-link { font-family: var(--sans); font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.8px; color: var(--text-mid); text-decoration: none; transition: color 0.2s; cursor: pointer; }
-        .nav-link:hover { color: var(--gold-light); }
-        .nav-link.active { color: var(--gold-light); }
         .msg-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 6px; font-family: var(--sans); font-size: 14px; font-weight: 500; color: #fff; cursor: pointer; transition: opacity 0.2s, transform 0.15s; text-decoration: none; }
         .msg-btn:hover { opacity: 0.88; transform: translateY(-1px); }
         @keyframes fadeUp { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
         @media (max-width: 960px) {
           .contact-layout { flex-direction: column !important; }
-          .footer-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
         }
       `}</style>
-
-      {/* NAVBAR */}
-      <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        background: scrolled ? 'rgba(18,18,18,0.97)' : 'rgba(18,18,18,0.92)',
-        borderBottom: '1.2px solid rgba(38,38,38,0.5)',
-        backdropFilter: 'blur(12px)', transition: 'background 0.3s',
-        padding: '0 clamp(24px, 7vw, 128px)', height: 72,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <Link to="/" style={{ fontFamily: 'var(--serif)', fontSize: 22, color: 'var(--gold-pale)', fontWeight: 400, textDecoration: 'none' }}>
-          Prime Leather Repair
-        </Link>
-        <nav style={{ display: 'flex', gap: 40 }}>
-          {NAV_LINKS.map(l => (
-            <Link key={l.label} to={l.path} className={`nav-link${l.path === '/contact' ? ' active' : ''}`}>
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
 
       {/* HERO */}
       <section style={{
@@ -366,44 +321,6 @@ export default function Contact() {
           </div>
         </div>
       </section>
-
-      {/* FOOTER */}
-      <footer style={{ background: '#0A0A0A', borderTop: '1.2px solid var(--border)', padding: 'clamp(60px,8vw,80px) clamp(24px,7vw,128px) 40px' }}>
-        <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 48, marginBottom: 48 }}>
-          <div>
-            <h3 style={{ fontFamily: 'var(--serif)', fontSize: 26, color: 'var(--gold-pale)', fontWeight: 400, marginBottom: 14 }}>Prime Leather Repair</h3>
-            <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.7, maxWidth: 300, marginBottom: 20 }}>
-              Chicago's premier leather restoration specialists. Preserving craftsmanship and extending the life of your finest pieces.
-            </p>
-            <div style={{ width: 48, height: 2, background: 'var(--gold)' }} />
-          </div>
-          <div>
-            <h4 style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '2.8px', marginBottom: 24 }}>Contact</h4>
-            {[
-              { icon: '📞', text: contact?.phone ?? '+1 (312) 555-0199' },
-              { icon: '✉️', text: contact?.email ?? 'info@primeleatherrepair.com' },
-              { icon: '📍', text: contact?.address ?? '123 Craft Street, Chicago, IL 60614' },
-            ].map(c => (
-              <div key={c.text} style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 14 }}>{c.icon}</span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.5 }}>{c.text}</span>
-              </div>
-            ))}
-          </div>
-          <div>
-            <h4 style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '2.8px', marginBottom: 24 }}>Hours</h4>
-            {HOURS.map(h => (
-              <div key={h.day} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)' }}>{h.day}</span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: h.time === 'Closed' ? '#737373' : '#FEE685' }}>{h.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{ borderTop: '1.2px solid var(--border)', paddingTop: 28, textAlign: 'center' }}>
-          <p style={{ fontFamily: 'var(--sans)', fontSize: 13, color: '#737373' }}>© 2026 Prime Leather Repair. All rights reserved.</p>
-        </div>
-      </footer>
 
       {/* FAB */}
       <a href="tel:+13125550199" style={{

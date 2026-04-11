@@ -319,32 +319,30 @@ export default function Admin() {
     queryFn: fetchContact,
   })
 
-  const [contactForm, setContactForm] = useState({
-    phone: '',
-    email: '',
-    address: '',
-    working_hours: '',
-    messenger_whatsapp: '',
-    messenger_telegram: '',
-  })
-
-  useEffect(() => {
+  const contactDefaults = useMemo(() => {
     const c = contactQuery.data
-    if (!c) return
-    setContactForm({
-      phone: c.phone || '',
-      email: c.email || '',
-      address: c.address || '',
-      working_hours: c.working_hours || '',
-      messenger_whatsapp: c.messenger_whatsapp || '',
-      messenger_telegram: c.messenger_telegram || '',
-    })
+    return {
+      phone: c?.phone || '',
+      email: c?.email || '',
+      address: c?.address || '',
+      working_hours: c?.working_hours || '',
+      messenger_whatsapp: c?.messenger_whatsapp || '',
+      messenger_telegram: c?.messenger_telegram || '',
+    }
   }, [contactQuery.data])
+
+  const [contactDraft, setContactDraft] = useState(null)
+  const contactForm = contactDraft ?? contactDefaults
+
+  function updateContactField(field, value) {
+    setContactDraft((draft) => ({ ...(draft ?? contactDefaults), [field]: value }))
+  }
 
   const saveMutation = useMutation({
     mutationFn: saveContact,
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['contact'] })
+      setContactDraft(null)
       setToast({ type: 'success', text: 'Contact details saved.' })
     },
     onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to save contact.' }),
@@ -897,7 +895,7 @@ export default function Admin() {
                       <Field label="Phone">
                         <input
                           value={contactForm.phone}
-                          onChange={(e) => setContactForm((s) => ({ ...s, phone: e.target.value }))}
+                          onChange={(e) => updateContactField('phone', e.target.value)}
                           style={styles.input}
                           placeholder="+1 (312) 555-0199"
                         />
@@ -905,7 +903,7 @@ export default function Admin() {
                       <Field label="Email">
                         <input
                           value={contactForm.email}
-                          onChange={(e) => setContactForm((s) => ({ ...s, email: e.target.value }))}
+                          onChange={(e) => updateContactField('email', e.target.value)}
                           style={styles.input}
                           placeholder="info@primeleatherrepair.com"
                         />
@@ -915,7 +913,7 @@ export default function Admin() {
                     <Field label="Address">
                       <input
                         value={contactForm.address}
-                        onChange={(e) => setContactForm((s) => ({ ...s, address: e.target.value }))}
+                        onChange={(e) => updateContactField('address', e.target.value)}
                         style={styles.input}
                         placeholder="123 Craft Street, Chicago, IL 60614"
                       />
@@ -925,7 +923,7 @@ export default function Admin() {
                       <Field label="Working Hours (Mon–Fri)">
                         <input
                           value={contactForm.working_hours}
-                          onChange={(e) => setContactForm((s) => ({ ...s, working_hours: e.target.value }))}
+                          onChange={(e) => updateContactField('working_hours', e.target.value)}
                           style={styles.input}
                           placeholder="9AM - 6PM"
                         />
@@ -934,7 +932,7 @@ export default function Admin() {
                       <Field label="WhatsApp Link">
                         <input
                           value={contactForm.messenger_whatsapp}
-                          onChange={(e) => setContactForm((s) => ({ ...s, messenger_whatsapp: e.target.value }))}
+                          onChange={(e) => updateContactField('messenger_whatsapp', e.target.value)}
                           style={styles.input}
                           placeholder="https://wa.me/13125550199"
                         />
@@ -944,7 +942,7 @@ export default function Admin() {
                     <Field label="Telegram Link">
                       <input
                         value={contactForm.messenger_telegram}
-                        onChange={(e) => setContactForm((s) => ({ ...s, messenger_telegram: e.target.value }))}
+                        onChange={(e) => updateContactField('messenger_telegram', e.target.value)}
                         style={styles.input}
                         placeholder="https://t.me/yourhandle"
                       />

@@ -13,7 +13,25 @@ dotenv.config({ path: resolve(__dirname, '../.env') })
 const app = express()
 const PORT = process.env.PORT || 5002
 
-app.use(cors({ origin: 'http://localhost:5175' }))
+const allowedOrigins = (
+  process.env.CLIENT_ORIGIN ||
+  process.env.CORS_ORIGIN ||
+  'http://localhost:5173,http://localhost:5174,http://localhost:5175'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      // Allow non-browser requests (no Origin header) and same-origin calls.
+      if (!origin) return cb(null, true)
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return cb(null, true)
+      return cb(new Error(`CORS blocked for origin: ${origin}`))
+    },
+  })
+)
 app.use(express.json())
 
 app.get('/health', (req, res) => {

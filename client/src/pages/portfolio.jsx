@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-const CATEGORIES = ['All', 'Furniture', 'Automotive', 'Footwear', 'Accessories', 'Apparel']
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 function useReveal() {
   const ref = useRef(null)
@@ -136,17 +135,39 @@ function PortfolioCard({ item, delay }) {
 
 export default function Portfolio() {
   const [activeCategory, setActiveCategory] = useState('All')
+  const [categories, setCategories] = useState([{ name: 'All', img_categories: null }])
   const [items, setItems] = useState([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
 
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/categories`)
+        const json = await res.json()
+        const data = Array.isArray(json) ? json : (json.data ?? [])
+        const normalized = (Array.isArray(data) ? data : [])
+          .map((c) => ({
+            name: c?.name,
+            img_categories: c?.img_categories || null,
+          }))
+          .filter((c) => Boolean(c.name))
+        if (!cancelled) setCategories([{ name: 'All', img_categories: null }, ...normalized])
+      } catch (err) {
+        console.error('Failed to fetch categories:', err)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   const fetchPortfolio = async (cat, pg, append = false) => {
     append ? setLoadingMore(true) : setLoading(true)
     try {
       const params = new URLSearchParams({ page: pg, limit: 12 })
-      if (cat !== 'All') params.append('category', cat.toLowerCase())
+      if (cat !== 'All') params.append('category', cat)
       const res = await fetch(`${API_URL}/api/portfolio?${params}`)
       const json = await res.json()
       const data = json.data ?? json
@@ -233,18 +254,45 @@ export default function Portfolio() {
         display: 'flex', justifyContent: 'center',
       }}>
         <div className="filter-bar" style={{ display: 'flex', gap: 10 }}>
-          {CATEGORIES.map(cat => (
+          {categories.map((cat) => (
             <button
-              key={cat}
+              key={cat.name}
               className="filter-btn"
-              onClick={() => handleCategoryClick(cat)}
+              onClick={() => handleCategoryClick(cat.name)}
               style={{
-                background: activeCategory === cat ? '#E17100' : '#171717',
-                color: activeCategory === cat ? '#fff' : '#D4D4D4',
-                outline: activeCategory === cat ? 'none' : '1.12px solid #262626',
-                boxShadow: activeCategory === cat ? '0 4px 15px -4px rgba(123,51,6,0.5)' : 'none',
+                background: activeCategory === cat.name ? '#E17100' : '#171717',
+                color: activeCategory === cat.name ? '#fff' : '#D4D4D4',
+                outline: activeCategory === cat.name ? 'none' : '1.12px solid #262626',
+                boxShadow: activeCategory === cat.name ? '0 4px 15px -4px rgba(123,51,6,0.5)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 18px',
               }}
-            >{cat}</button>
+            >
+              {cat.img_categories && cat.name !== 'All' && (
+                <span
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    border: activeCategory === cat.name ? '1px solid rgba(255,255,255,0.32)' : '1px solid #262626',
+                    flexShrink: 0,
+                    background: '#1A1A1A',
+                  }}
+                >
+                  <img
+                    src={cat.img_categories}
+                    alt=""
+                    aria-hidden="true"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    loading="lazy"
+                  />
+                </span>
+              )}
+              <span>{cat.name}</span>
+            </button>
           ))}
         </div>
       </div>

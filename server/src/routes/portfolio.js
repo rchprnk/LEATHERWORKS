@@ -48,17 +48,45 @@ router.get('/', async (req, res) => {
   res.json(data)
 })
 
+router.put('/:id', async (req, res) => {
+  const { id } = req.params
+  const { title, description = null } = req.body || {}
+
+  if (!id) return res.status(400).json({ error: 'id is required' })
+  if (!title || String(title).trim().length === 0) return res.status(400).json({ error: 'title is required' })
+
+  const { data, error } = await supabase
+    .from('portfolio')
+    .update({
+      title: String(title).trim(),
+      description,
+    })
+    .eq('id', id)
+    .select('*')
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return res.status(404).json({ error: 'Not found' })
+    return res.status(supabaseErrorStatus(error)).json({ error: error.message, code: error.code })
+  }
+
+  res.json(data)
+})
+
 router.post(
   '/',
   upload.fields([
     { name: 'before', maxCount: 1 },
     { name: 'after', maxCount: 1 },
+    // Backward/forward compatible field names from various clients
+    { name: 'beforeImage', maxCount: 1 },
+    { name: 'afterImage', maxCount: 1 },
   ]),
   async (req, res) => {
     try {
       const { title, description = null, category = null } = req.body || {}
-      const beforeFile = req.files?.before?.[0]
-      const afterFile = req.files?.after?.[0]
+      const beforeFile = req.files?.before?.[0] || req.files?.beforeImage?.[0]
+      const afterFile = req.files?.after?.[0] || req.files?.afterImage?.[0]
 
       if (!title) return res.status(400).json({ error: 'title is required' })
       if (!beforeFile) return res.status(400).json({ error: 'before file is required' })

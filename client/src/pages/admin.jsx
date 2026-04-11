@@ -17,6 +17,11 @@ async function deletePortfolio(id) {
   return res.data
 }
 
+async function updatePortfolio({ id, title, description }) {
+  const res = await api.put(`/api/portfolio/${id}`, { title, description })
+  return res.data
+}
+
 async function fetchCategories() {
   const res = await api.get('/api/categories')
   return res.data
@@ -29,6 +34,11 @@ async function createCategory(payload) {
 
 async function deleteCategory(id) {
   const res = await api.delete(`/api/categories/${id}`)
+  return res.data
+}
+
+async function updateCategory({ id, name, description }) {
+  const res = await api.put(`/api/categories/${id}`, { name, description })
   return res.data
 }
 
@@ -113,6 +123,14 @@ function Icon({ name }) {
       </svg>
     )
   }
+  if (name === 'edit') {
+    return (
+      <svg {...common}>
+        <path {...stroke} d="M12 20h9" />
+        <path {...stroke} d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z" />
+      </svg>
+    )
+  }
   return null
 }
 
@@ -123,6 +141,13 @@ export default function Admin() {
   const [deletingCatId, setDeletingCatId] = useState(null)
   const [activeSection, setActiveSection] = useState('portfolio')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [editingCategoryId, setEditingCategoryId] = useState(null)
+  const [editCategoryForm, setEditCategoryForm] = useState({ name: '', description: '' })
+  const [savingCatId, setSavingCatId] = useState(null)
+  const [editingWorkId, setEditingWorkId] = useState(null)
+  const [editWorkForm, setEditWorkForm] = useState({ title: '', description: '' })
+  const [savingWorkId, setSavingWorkId] = useState(null)
+  const [expandedWorkIds, setExpandedWorkIds] = useState(() => new Set())
 
   const styles = useMemo(() => {
     const gold = '#c8902a'
@@ -157,6 +182,14 @@ export default function Admin() {
         borderRadius: 10,
         border: '1px solid rgba(255,90,90,0.35)',
         background: 'rgba(255,90,90,0.12)',
+        color: '#fff',
+        cursor: 'pointer',
+      },
+      buttonSubtle: {
+        padding: '10px 12px',
+        borderRadius: 10,
+        border: `1px solid ${border}`,
+        background: 'rgba(10,10,10,0.35)',
         color: '#fff',
         cursor: 'pointer',
       },
@@ -198,6 +231,20 @@ export default function Admin() {
     onSettled: () => setDeletingCatId(null),
   })
 
+  const updateCategoryMutation = useMutation({
+    mutationFn: updateCategory,
+    onMutate: async ({ id }) => {
+      setSavingCatId(id)
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['categories'] })
+      setToast({ type: 'success', text: 'Category updated.' })
+      setEditingCategoryId(null)
+    },
+    onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to update category.' }),
+    onSettled: () => setSavingCatId(null),
+  })
+
   // Portfolio
   const portfolioQuery = useQuery({
     queryKey: ['portfolio'],
@@ -226,6 +273,23 @@ export default function Admin() {
     onSettled: () => setDeletingId(null),
   })
 
+  const updateWorkMutation = useMutation({
+    mutationFn: updatePortfolio,
+    onMutate: async ({ id }) => {
+      setSavingWorkId(id)
+    },
+    onSuccess: async (updated) => {
+      qc.setQueryData(['portfolio'], (old) => {
+        const list = Array.isArray(old) ? old : []
+        return list.map((w) => (w?.id === updated?.id ? { ...w, ...updated } : w))
+      })
+      setToast({ type: 'success', text: 'Work updated.' })
+      setEditingWorkId(null)
+    },
+    onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to update work.' }),
+    onSettled: () => setSavingWorkId(null),
+  })
+
   const [newItem, setNewItem] = useState({
     title: '',
     description: '',
@@ -233,6 +297,11 @@ export default function Admin() {
     before: null,
     after: null,
   })
+
+  const categoryImageInputRef = useRef(null)
+  const categoryImageObjectUrlRef = useRef(null)
+  const [categoryImageFile, setCategoryImageFileState] = useState(null)
+  const [categoryImagePreviewUrl, setCategoryImagePreviewUrl] = useState(null)
 
   const beforeInputRef = useRef(null)
   const afterInputRef = useRef(null)
@@ -245,8 +314,42 @@ export default function Admin() {
     return () => {
       if (beforeObjectUrlRef.current) URL.revokeObjectURL(beforeObjectUrlRef.current)
       if (afterObjectUrlRef.current) URL.revokeObjectURL(afterObjectUrlRef.current)
+      if (categoryImageObjectUrlRef.current) URL.revokeObjectURL(categoryImageObjectUrlRef.current)
     }
   }, [])
+
+  function validateCategoryImage(file) {
+    if (!file) return { ok: true }
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+    const allowedExt = /\.(jpe?g|png|webp)$/i
+    if (file.size > 2 * 1024 * 1024) return { ok: false, message: 'Category image must be <= 2MB.' }
+    if (file.type && !allowedTypes.has(file.type)) return { ok: false, message: 'Only .jpg, .png, and .webp are allowed.' }
+    if (!file.type && !allowedExt.test(file.name || '')) return { ok: false, message: 'Only .jpg, .png, and .webp are allowed.' }
+    return { ok: true }
+  }
+
+  function setCategoryImageFile(file) {
+    const v = validateCategoryImage(file)
+    if (!v.ok) {
+      setToast({ type: 'error', text: v.message })
+      return
+    }
+    setCategoryImageFileState(file || null)
+    if (categoryImageObjectUrlRef.current) URL.revokeObjectURL(categoryImageObjectUrlRef.current)
+    if (!file) {
+      categoryImageObjectUrlRef.current = null
+      setCategoryImagePreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    categoryImageObjectUrlRef.current = url
+    setCategoryImagePreviewUrl(url)
+  }
+
+  function clearCategoryImage() {
+    setCategoryImageFile(null)
+    if (categoryImageInputRef.current) categoryImageInputRef.current.value = ''
+  }
 
   function setBeforeFile(file) {
     setNewItem((s) => ({ ...s, before: file }))
@@ -287,6 +390,44 @@ export default function Admin() {
     formEl?.reset?.()
   }
 
+  function resetNewCategoryForm(formEl) {
+    if (categoryImageObjectUrlRef.current) URL.revokeObjectURL(categoryImageObjectUrlRef.current)
+    categoryImageObjectUrlRef.current = null
+    setCategoryImageFileState(null)
+    setCategoryImagePreviewUrl(null)
+    if (categoryImageInputRef.current) categoryImageInputRef.current.value = ''
+    formEl?.reset?.()
+  }
+
+  function startEditCategory(cat) {
+    setEditingCategoryId(cat.id)
+    setEditCategoryForm({ name: cat.name || '', description: cat.description || '' })
+  }
+
+  function cancelEditCategory() {
+    setEditingCategoryId(null)
+    setEditCategoryForm({ name: '', description: '' })
+  }
+
+  function startEditWork(work) {
+    setEditingWorkId(work.id)
+    setEditWorkForm({ title: work.title || '', description: work.description || '' })
+  }
+
+  function cancelEditWork() {
+    setEditingWorkId(null)
+    setEditWorkForm({ title: '', description: '' })
+  }
+
+  function toggleWorkExpanded(id) {
+    setExpandedWorkIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   function clearBefore() {
     setBeforeFile(null)
     if (beforeInputRef.current) beforeInputRef.current.value = ''
@@ -303,12 +444,16 @@ export default function Admin() {
       setToast({ type: 'error', text: 'Please select a category.' })
       return
     }
+    if (!newItem.before || !newItem.after) {
+      setToast({ type: 'error', text: 'Please select both Before and After photos.' })
+      return
+    }
     const fd = new FormData()
     fd.append('title', newItem.title)
     fd.append('description', newItem.description)
     fd.append('category', newItem.category)
-    if (newItem.before) fd.append('before', newItem.before)
-    if (newItem.after) fd.append('after', newItem.after)
+    fd.append('beforeImage', newItem.before)
+    fd.append('afterImage', newItem.after)
     await createMutation.mutateAsync(fd)
     resetNewWorkForm(e.target)
   }
@@ -423,6 +568,16 @@ export default function Admin() {
         .admin-upload-action { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; line-height: 1; }
         .admin-upload-action:hover { background: rgba(0,0,0,0.72); }
         .admin-upload-chip { position: absolute; left: 12px; bottom: 12px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(0,0,0,0.40); color: rgba(255,255,255,0.92); font-size: 12px; letter-spacing: 0.4px; }
+        .admin-cat-row { border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; background: rgba(10,10,10,0.40); display: flex; justify-content: space-between; gap: 12px; }
+        .admin-cat-left { flex: 1; min-width: 0; display: flex; gap: 12px; align-items: flex-start; }
+        .admin-cat-text { flex: 1; min-width: 0; display: grid; gap: 6px; }
+        .admin-cat-name { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .admin-cat-desc { color: #A1A1A1; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .admin-cat-actions { flex-shrink: 0; display: flex; gap: 8px; align-items: flex-start; }
+        .admin-work-actions { flex-shrink: 0; display: flex; gap: 8px; align-items: flex-start; }
+        .admin-work-desc { color: #A1A1A1; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .admin-work-desc.expanded { display: block; overflow: visible; -webkit-line-clamp: unset; }
+        .admin-work-readmore { margin-top: 4px; color: rgba(255,255,255,0.75); font-size: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
         @media (max-width: 900px) {
           .admin-shell { grid-template-columns: 1fr; }
           .admin-topbar { display: flex; }
@@ -542,28 +697,117 @@ export default function Admin() {
                           justifyContent: 'space-between',
                           alignItems: 'flex-start',
                           gap: 12,
+                          minHeight: 140,
                         }}
                       >
                         <div style={{ display: 'grid', gap: 6, flex: 1 }}>
                           <div style={{ color: '#FE9A00', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 500 }}>
                             {item.category || 'uncategorized'}
                           </div>
-                          <div style={{ fontSize: 20, fontWeight: 600 }}>{item.title}</div>
-                          {item.description && <div style={{ color: '#A1A1A1', fontSize: 14, lineHeight: 1.5 }}>{item.description}</div>}
+                          {editingWorkId === item.id ? (
+                            <>
+                              <input
+                                value={editWorkForm.title}
+                                onChange={(e) => setEditWorkForm((s) => ({ ...s, title: e.target.value }))}
+                                style={{ ...styles.input, padding: '10px 12px' }}
+                                placeholder="Title"
+                                required
+                              />
+                              <textarea
+                                value={editWorkForm.description}
+                                onChange={(e) => setEditWorkForm((s) => ({ ...s, description: e.target.value }))}
+                                style={{
+                                  ...styles.input,
+                                  padding: '10px 12px',
+                                  minHeight: 74,
+                                  maxHeight: 180,
+                                  overflowY: 'auto',
+                                  resize: 'vertical',
+                                }}
+                                placeholder="Description (optional)"
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontSize: 20, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {item.title}
+                              </div>
+                              {item.description && (
+                                <div className={`admin-work-desc ${expandedWorkIds.has(item.id) ? 'expanded' : ''}`}>
+                                  {item.description}
+                                </div>
+                              )}
+                              {item.description && (
+                                <button
+                                  type="button"
+                                  className="admin-work-readmore"
+                                  onClick={() => toggleWorkExpanded(item.id)}
+                                >
+                                  {expandedWorkIds.has(item.id) ? 'Read less' : 'Read more'}
+                                </button>
+                              )}
+                            </>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          style={{
-                            ...styles.buttonDanger,
-                            opacity: deleteMutation.isPending ? 0.7 : 1,
-                            cursor: deleteMutation.isPending ? 'not-allowed' : 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                          onClick={() => deleteMutation.mutate(item.id)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          {item.id === deletingId ? 'Deleting…' : 'Delete'}
-                        </button>
+                        <div className="admin-work-actions">
+                          {editingWorkId === item.id ? (
+                            <>
+                              <button
+                                type="button"
+                                style={{
+                                  ...styles.button,
+                                  opacity: updateWorkMutation.isPending ? 0.7 : 1,
+                                  cursor: updateWorkMutation.isPending ? 'not-allowed' : 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                onClick={() =>
+                                  updateWorkMutation.mutate({
+                                    id: item.id,
+                                    title: editWorkForm.title,
+                                    description: editWorkForm.description || null,
+                                  })
+                                }
+                                disabled={updateWorkMutation.isPending}
+                              >
+                                {item.id === savingWorkId ? 'Saving…' : 'Save'}
+                              </button>
+                              <button type="button" style={styles.buttonSubtle} onClick={cancelEditWork}>
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                style={{
+                                  ...styles.buttonSubtle,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  whiteSpace: 'nowrap',
+                                }}
+                                onClick={() => startEditWork(item)}
+                                disabled={deleteMutation.isPending || updateWorkMutation.isPending}
+                              >
+                                <Icon name="edit" />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                style={{
+                                  ...styles.buttonDanger,
+                                  opacity: deleteMutation.isPending ? 0.7 : 1,
+                                  cursor: deleteMutation.isPending ? 'not-allowed' : 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                onClick={() => deleteMutation.mutate(item.id)}
+                                disabled={deleteMutation.isPending || updateWorkMutation.isPending}
+                              >
+                                {item.id === deletingId ? 'Deleting…' : 'Delete'}
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -664,7 +908,6 @@ export default function Admin() {
                           type="file"
                           accept="image/*"
                           onChange={(e) => setBeforeFile(e.target.files?.[0] || null)}
-                          required
                         />
 
                         {!beforePreviewUrl && (
@@ -728,7 +971,6 @@ export default function Admin() {
                           type="file"
                           accept="image/*"
                           onChange={(e) => setAfterFile(e.target.files?.[0] || null)}
-                          required
                         />
 
                         {!afterPreviewUrl && (
@@ -773,7 +1015,14 @@ export default function Admin() {
                     <button
                       type="submit"
                       style={styles.button}
-                      disabled={createMutation.isPending || categoriesQuery.isLoading || (categoriesQuery.data || []).length === 0 || !newItem.category}
+                      disabled={
+                        createMutation.isPending ||
+                        categoriesQuery.isLoading ||
+                        (categoriesQuery.data || []).length === 0 ||
+                        !newItem.category ||
+                        !newItem.before ||
+                        !newItem.after
+                      }
                     >
                       {createMutation.isPending ? 'Uploading…' : 'Add to Portfolio'}
                     </button>
@@ -806,34 +1055,126 @@ export default function Admin() {
                   {(categoriesQuery.data || []).map((cat) => (
                     <div
                       key={cat.id}
-                      style={{
-                        border: `1px solid ${styles.border}`,
-                        borderRadius: 14,
-                        padding: 14,
-                        background: 'rgba(10,10,10,0.40)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        gap: 12,
-                      }}
+                      className="admin-cat-row"
                     >
-                      <div style={{ flex: 1, display: 'grid', gap: 6 }}>
-                        <div style={{ fontSize: 16, fontWeight: 600 }}>{cat.name}</div>
-                        {cat.description && <div style={{ color: '#A1A1A1', fontSize: 14, lineHeight: 1.5 }}>{cat.description}</div>}
+                      <div className="admin-cat-left">
+                        <div
+                          style={{
+                            width: 46,
+                            height: 46,
+                            borderRadius: 12,
+                            overflow: 'hidden',
+                            border: `1px solid ${styles.border}`,
+                            background: 'rgba(0,0,0,0.25)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {cat.img_categories ? (
+                            <img
+                              src={cat.img_categories}
+                              alt={cat.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.65)' }}>
+                              <Icon name="image" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="admin-cat-text">
+                          {editingCategoryId === cat.id ? (
+                            <>
+                              <input
+                                value={editCategoryForm.name}
+                                onChange={(e) => setEditCategoryForm((s) => ({ ...s, name: e.target.value }))}
+                                style={{ ...styles.input, padding: '10px 12px' }}
+                                placeholder="Category name"
+                                required
+                              />
+                              <textarea
+                                value={editCategoryForm.description}
+                                onChange={(e) => setEditCategoryForm((s) => ({ ...s, description: e.target.value }))}
+                                style={{
+                                  ...styles.input,
+                                  padding: '10px 12px',
+                                  minHeight: 74,
+                                  maxHeight: 140,
+                                  overflowY: 'auto',
+                                  resize: 'vertical',
+                                }}
+                                placeholder="Description (optional)"
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <div className="admin-cat-name">{cat.name}</div>
+                              {cat.description && <div className="admin-cat-desc">{cat.description}</div>}
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        style={{
-                          ...styles.buttonDanger,
-                          opacity: deleteCategoryMutation.isPending ? 0.7 : 1,
-                          cursor: deleteCategoryMutation.isPending ? 'not-allowed' : 'pointer',
-                          whiteSpace: 'nowrap',
-                        }}
-                        onClick={() => deleteCategoryMutation.mutate(cat.id)}
-                        disabled={deleteCategoryMutation.isPending}
-                      >
-                        {cat.id === deletingCatId ? 'Deleting…' : 'Delete'}
-                      </button>
+
+                      <div className="admin-cat-actions">
+                        {editingCategoryId === cat.id ? (
+                          <>
+                            <button
+                              type="button"
+                              style={{
+                                ...styles.button,
+                                opacity: updateCategoryMutation.isPending ? 0.7 : 1,
+                                cursor: updateCategoryMutation.isPending ? 'not-allowed' : 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                              onClick={() =>
+                                updateCategoryMutation.mutate({
+                                  id: cat.id,
+                                  name: editCategoryForm.name,
+                                  description: editCategoryForm.description || null,
+                                })
+                              }
+                              disabled={updateCategoryMutation.isPending}
+                            >
+                              {cat.id === savingCatId ? 'Saving…' : 'Save'}
+                            </button>
+                            <button type="button" style={styles.buttonSubtle} onClick={cancelEditCategory}>
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              style={{
+                                ...styles.buttonSubtle,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                whiteSpace: 'nowrap',
+                              }}
+                              onClick={() => startEditCategory(cat)}
+                              disabled={deleteCategoryMutation.isPending || updateCategoryMutation.isPending}
+                            >
+                              <Icon name="edit" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              style={{
+                                ...styles.buttonDanger,
+                                opacity: deleteCategoryMutation.isPending ? 0.7 : 1,
+                                cursor: deleteCategoryMutation.isPending ? 'not-allowed' : 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                              onClick={() => deleteCategoryMutation.mutate(cat.id)}
+                              disabled={deleteCategoryMutation.isPending || updateCategoryMutation.isPending}
+                            >
+                              {cat.id === deletingCatId ? 'Deleting…' : 'Delete'}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -844,8 +1185,12 @@ export default function Admin() {
                     const form = new FormData(e.currentTarget)
                     const name = String(form.get('name') || '').trim()
                     const description = String(form.get('description') || '').trim()
-                    await createCategoryMutation.mutateAsync({ name, description: description || null })
-                    e.currentTarget.reset()
+                    const fd = new FormData()
+                    fd.append('name', name)
+                    fd.append('description', description)
+                    if (categoryImageFile) fd.append('image', categoryImageFile)
+                    await createCategoryMutation.mutateAsync(fd)
+                    resetNewCategoryForm(e.currentTarget)
                   }}
                   style={{
                     border: `1px solid ${styles.border}`,
@@ -865,6 +1210,68 @@ export default function Admin() {
                       <input name="description" style={styles.input} placeholder="Optional short description…" />
                     </Field>
                   </div>
+                  <Field label="Category Image">
+                    <div
+                      className="admin-upload-box"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') categoryImageInputRef.current?.click?.()
+                      }}
+                      onClick={() => categoryImageInputRef.current?.click?.()}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        const file = e.dataTransfer?.files?.[0]
+                        if (file) setCategoryImageFile(file)
+                      }}
+                      style={{ minHeight: 180 }}
+                    >
+                      <input
+                        ref={categoryImageInputRef}
+                        className="admin-file-input"
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        onChange={(e) => setCategoryImageFile(e.target.files?.[0] || null)}
+                      />
+
+                      {!categoryImagePreviewUrl && (
+                        <div className="admin-upload-inner">
+                          <div className="admin-upload-icon" aria-hidden="true">
+                            <Icon name="image" />
+                          </div>
+                          <div className="admin-upload-title">Click to upload category image</div>
+                          <div className="admin-upload-sub">JPG, PNG, or WEBP • max 2MB • square recommended</div>
+                        </div>
+                      )}
+
+                      {categoryImagePreviewUrl && (
+                        <>
+                          <div className="admin-upload-preview">
+                            <img src={categoryImagePreviewUrl} alt="Category preview" />
+                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
+                            <div className="admin-upload-chip">Click to change</div>
+                          </div>
+                          <div className="admin-upload-actions">
+                            <button
+                              className="admin-upload-action"
+                              type="button"
+                              onClick={(ev) => {
+                                ev.preventDefault()
+                                ev.stopPropagation()
+                                clearCategoryImage()
+                              }}
+                              aria-label="Remove category image"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </Field>
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button type="submit" style={styles.button} disabled={createCategoryMutation.isPending}>
                       {createCategoryMutation.isPending ? 'Saving…' : 'Add Category'}

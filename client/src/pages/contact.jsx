@@ -1,20 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 
-const NAV_LINKS = [
-  { label: 'Home', path: '/' },
-  { label: 'Our Works', path: '/portfolio' },
-  { label: 'Contact', path: '/contact' },
-]
-
-const HOURS = [
-  { day: 'Mon – Fri', time: '9:00 AM – 6:00 PM' },
-  { day: 'Saturday', time: '10:00 AM – 4:00 PM' },
-  { day: 'Sunday', time: 'Closed' },
-]
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
-const CONTACTS_API_VERSION = 1
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002'
 
 function useReveal() {
   const ref = useRef(null)
@@ -76,27 +62,20 @@ function ContactCard({ icon, title, children }) {
 }
 
 export default function Contact() {
-  const [scrolled, setScrolled] = useState(false)
   const [contact, setContact] = useState(null)
   const [studioImg, setStudioImg] = useState(null)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40)
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/contact?v=${CONTACTS_API_VERSION}`)
+    fetch(`${API_URL}/api/contact`)
       .then(r => r.json())
       .then(data => setContact(data))
       .catch(() => setContact({
         phone: '+1 (312) 555-0199',
         email: 'info@primeleatherrepair.com',
         address: '123 Craft Street, Chicago, IL 60614',
-        working_hours: '9AM - 6PM',
-        messenger_whatsapp: '#',
-        messenger_telegram: '#',
+        hours: { mon_fri: '9:00 AM - 6:00 PM', saturday: '10:00 AM - 4:00 PM', sunday: 'Closed' },
+        whatsapp: '#',
+        telegram: '#',
       }))
   }, [])
 
@@ -127,38 +106,13 @@ export default function Contact() {
           --sans: 'DM Sans', sans-serif;
         }
         html { scroll-behavior: smooth; }
-        .nav-link { font-family: var(--sans); font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.8px; color: var(--text-mid); text-decoration: none; transition: color 0.2s; cursor: pointer; }
-        .nav-link:hover { color: var(--gold-light); }
-        .nav-link.active { color: var(--gold-light); }
         .msg-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 6px; font-family: var(--sans); font-size: 14px; font-weight: 500; color: #fff; cursor: pointer; transition: opacity 0.2s, transform 0.15s; text-decoration: none; }
         .msg-btn:hover { opacity: 0.88; transform: translateY(-1px); }
         @keyframes fadeUp { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
         @media (max-width: 960px) {
           .contact-layout { flex-direction: column !important; }
-          .footer-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
         }
       `}</style>
-
-      {/* NAVBAR */}
-      <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        background: scrolled ? 'rgba(18,18,18,0.97)' : 'rgba(18,18,18,0.92)',
-        borderBottom: '1.2px solid rgba(38,38,38,0.5)',
-        backdropFilter: 'blur(12px)', transition: 'background 0.3s',
-        padding: '0 clamp(24px, 7vw, 128px)', height: 72,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <Link to="/" style={{ fontFamily: 'var(--serif)', fontSize: 22, color: 'var(--gold-pale)', fontWeight: 400, textDecoration: 'none' }}>
-          Prime Leather Repair
-        </Link>
-        <nav style={{ display: 'flex', gap: 40 }}>
-          {NAV_LINKS.map(l => (
-            <Link key={l.label} to={l.path} className={`nav-link${l.path === '/contact' ? ' active' : ''}`}>
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
 
       {/* HERO */}
       <section style={{
@@ -202,7 +156,7 @@ export default function Contact() {
                   {contact?.phone ?? '+1 (312) 555-0199'}
                 </div>
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#A1A1A1' }}>
-                  Mon-Fri: {contact?.working_hours ?? '9AM - 6PM'}
+                  Mon-Fri: {contact?.hours?.mon_fri ?? '9:00 AM - 6:00 PM'}
                 </div>
               </ContactCard>
             </Reveal>
@@ -237,32 +191,32 @@ export default function Contact() {
                   </svg>
                 }
               >
-	                <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-	                  <a
-	                    href={contact?.messenger_whatsapp ?? `https://wa.me/${(contact?.phone ?? '').replace(/\D/g, '')}`}
-	                    target="_blank" rel="noreferrer"
-	                    className="msg-btn"
-	                    style={{ background: '#00A63E' }}
-	                  >
+                <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                  <a
+                    href={contact?.whatsapp ?? `https://wa.me/${(contact?.phone ?? '').replace(/\D/g, '')}`}
+                    target="_blank" rel="noreferrer"
+                    className="msg-btn"
+                    style={{ background: '#00A63E' }}
+                  >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
                     </svg>
                     WhatsApp
-	                  </a>
-	                  <a
-	                    href={contact?.messenger_telegram ?? '#'}
-	                    target="_blank" rel="noreferrer"
-	                    className="msg-btn"
-	                    style={{ background: '#155DFC' }}
-	                  >
+                  </a>
+                  <a
+                    href={contact?.telegram ?? '#'}
+                    target="_blank" rel="noreferrer"
+                    className="msg-btn"
+                    style={{ background: '#155DFC' }}
+                  >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
                       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
                     </svg>
-	                    Telegram
-	                  </a>
-	                </div>
-	              </ContactCard>
-	            </Reveal>
+                    Telegram
+                  </a>
+                </div>
+              </ContactCard>
+            </Reveal>
 
             {/* Location & Hours */}
             <Reveal delay={240}>
@@ -292,16 +246,16 @@ export default function Contact() {
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
                       <span style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500, color: '#F5F5F5' }}>Hours</span>
-	                    </div>
-	                    <div style={{ fontFamily: 'var(--sans)', fontSize: 14, lineHeight: 1.8 }}>
-	                      <div><span style={{ color: '#D4D4D4' }}>Mon-Fri: </span><span style={{ color: '#FFD230' }}>{contact?.working_hours ?? '9AM - 6PM'}</span></div>
-	                      <div><span style={{ color: '#D4D4D4' }}>Sat: </span><span style={{ color: '#FFD230' }}>{'10AM - 4PM'}</span></div>
-	                      <div style={{ color: '#A1A1A1' }}>Sun: Closed</div>
-	                    </div>
-	                  </div>
-	                </div>
-	              </ContactCard>
-	            </Reveal>
+                    </div>
+                    <div style={{ fontFamily: 'var(--sans)', fontSize: 14, lineHeight: 1.8 }}>
+                      <div><span style={{ color: '#D4D4D4' }}>Mon-Fri: </span><span style={{ color: '#FFD230' }}>{contact?.hours?.mon_fri ?? '9AM-6PM'}</span></div>
+                      <div><span style={{ color: '#D4D4D4' }}>Sat: </span><span style={{ color: '#FFD230' }}>{contact?.hours?.saturday ?? '10AM-4PM'}</span></div>
+                      <div style={{ color: '#A1A1A1' }}>Sun: Closed</div>
+                    </div>
+                  </div>
+                </div>
+              </ContactCard>
+            </Reveal>
           </div>
 
           {/* RIGHT — studio card + map */}
@@ -367,48 +321,6 @@ export default function Contact() {
           </div>
         </div>
       </section>
-
-      {/* FOOTER */}
-      <footer style={{ background: '#0A0A0A', borderTop: '1.2px solid var(--border)', padding: 'clamp(60px,8vw,80px) clamp(24px,7vw,128px) 40px' }}>
-        <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 48, marginBottom: 48 }}>
-          <div>
-            <h3 style={{ fontFamily: 'var(--serif)', fontSize: 26, color: 'var(--gold-pale)', fontWeight: 400, marginBottom: 14 }}>Prime Leather Repair</h3>
-            <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.7, maxWidth: 300, marginBottom: 20 }}>
-              Chicago's premier leather restoration specialists. Preserving craftsmanship and extending the life of your finest pieces.
-            </p>
-            <div style={{ width: 48, height: 2, background: 'var(--gold)' }} />
-          </div>
-          <div>
-            <h4 style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '2.8px', marginBottom: 24 }}>Contact</h4>
-            {[
-              { icon: '📞', text: contact?.phone ?? '+1 (312) 555-0199' },
-              { icon: '✉️', text: contact?.email ?? 'info@primeleatherrepair.com' },
-              { icon: '📍', text: contact?.address ?? '123 Craft Street, Chicago, IL 60614' },
-            ].map(c => (
-              <div key={c.text} style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 14 }}>{c.icon}</span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.5 }}>{c.text}</span>
-              </div>
-            ))}
-          </div>
-          <div>
-            <h4 style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '2.8px', marginBottom: 24 }}>Hours</h4>
-            {[
-              { day: 'Mon – Fri', time: contact?.working_hours ?? HOURS[0].time },
-              { day: 'Saturday', time: HOURS[1].time },
-              { day: 'Sunday', time: HOURS[2].time },
-            ].map(h => (
-              <div key={h.day} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)' }}>{h.day}</span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: h.time === 'Closed' ? '#737373' : '#FEE685' }}>{h.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{ borderTop: '1.2px solid var(--border)', paddingTop: 28, textAlign: 'center' }}>
-          <p style={{ fontFamily: 'var(--sans)', fontSize: 13, color: '#737373' }}>© 2026 Prime Leather Repair. All rights reserved.</p>
-        </div>
-      </footer>
 
       {/* FAB */}
       <a href="tel:+13125550199" style={{

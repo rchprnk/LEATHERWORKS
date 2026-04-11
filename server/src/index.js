@@ -11,9 +11,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: resolve(__dirname, '../.env') })
 
 const app = express()
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5002
 
-app.use(cors({ origin: 'http://localhost:5173' }))
+app.use(cors({ origin: 'http://localhost:5175' }))
 app.use(express.json())
 
 app.get('/health', (req, res) => {

@@ -30,7 +30,8 @@ api.interceptors.response.use(
   }
 )
 
-export const getPortfolio = () => api.get('/api/portfolio')
-export const submitQuote = (data) => api.post('/api/contact', data)
+export const getPortfolio = (params = {}) => api.get('/api/portfolio', { params })
+export const getCategories = () => api.get('/api/categories')
+export const getContact = () => api.get('/api/contact')
 
 export default api

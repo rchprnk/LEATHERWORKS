@@ -3,6 +3,7 @@ import crafterImg from '../assets/crafter.png'
 import commercial1Img from '../assets/commercial-1.png'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { getCategories } from '../services/api'
 
 // Функція для анімації появи (залишаємо її тут)
 function useReveal() {
@@ -47,10 +48,14 @@ const WHY_ITEMS = [
   { num: '4', title: 'Sustainable Quality', desc: 'Instead of replacing expensive items, we offer a practical, cost-effective, and eco-friendly alternative.' },
 ]
 
-const SERVICES = [
-  {
-    title: 'Bags, Wallets',
-    desc: 'Luxury accessories restoration',
+const DEFAULT_SERVICES = [
+  { id: 'bags-wallets', name: 'Bags, Wallets', description: 'Luxury accessories restoration' },
+  { id: 'car-seats', name: 'Car Seats', description: 'Automotive interior repair' },
+  { id: 'furniture', name: 'Furniture', description: 'Premium furniture restoration' },
+]
+
+const SERVICE_VISUALS = {
+  accessories: {
     img: 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
@@ -61,9 +66,7 @@ const SERVICES = [
       </svg>
     ),
   },
-  {
-    title: 'Car Seats',
-    desc: 'Automotive interior repair',
+  automotive: {
     img: 'https://images.unsplash.com/photo-1679945747285-26f0e6569958?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
@@ -75,9 +78,7 @@ const SERVICES = [
       </svg>
     ),
   },
-  {
-    title: 'Furniture',
-    desc: 'Premium furniture restoration',
+  furniture: {
     img: 'https://images.unsplash.com/photo-1708869979139-6d4137a12684?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
@@ -87,9 +88,51 @@ const SERVICES = [
       </svg>
     ),
   },
-]
+  default: {
+    img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80',
+    icon: (
+      <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
+        <path d="M7 7h10l2 4-2 6H7l-2-6 2-4z"/>
+        <path d="M9 7V5a3 3 0 0 1 6 0v2"/>
+      </svg>
+    ),
+  },
+}
+
+function normalizeCategoryKey(name = '') {
+  return String(name).trim().toLowerCase()
+}
+
+function getServiceVisual(name) {
+  const key = normalizeCategoryKey(name)
+  return SERVICE_VISUALS[key] || SERVICE_VISUALS.default
+}
 
 export default function Home() {
+  const [services, setServices] = useState([])
+  const [servicesReady, setServicesReady] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+
+    getCategories()
+      .then(({ data }) => {
+        if (!alive) return
+        if (Array.isArray(data) && data.length > 0) setServices(data)
+        else setServices(DEFAULT_SERVICES)
+        setServicesReady(true)
+      })
+      .catch(() => {
+        if (!alive) return
+        setServices(DEFAULT_SERVICES)
+        setServicesReady(true)
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
   return (
     <div style={{ background: '#121212', color: '#fff', fontFamily: 'Georgia, serif', overflowX: 'hidden' }}>
       <style>{`
@@ -136,8 +179,13 @@ export default function Home() {
         }
         .btn-outline:hover { background: rgba(225,113,0,0.1); }
 
+        .svc-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
         .svc-card {
           position: relative; overflow: hidden; flex: 1;
+          min-height: 280px;
           border-right: 1px solid var(--border);
           padding: 40px 36px 44px;
           transition: background 0.3s;
@@ -189,10 +237,13 @@ export default function Home() {
           .why-col { border-right: none !important; border-bottom: 1px solid var(--border); padding: 0 0 32px 0 !important; margin-bottom: 32px; }
           .why-col:nth-child(2n) { padding-left: 20px !important; }
           .craft-flex, .commercial-flex { flex-direction: column !important; }
-          .svc-row { flex-direction: column !important; }
+          .svc-row { grid-template-columns: 1fr !important; }
+          .svc-card { border-right: none; border-bottom: 1px solid var(--border); min-height: 240px; }
+          .svc-bg { opacity: 0.2; }
         }
         @media (max-width: 600px) {
           .why-grid { grid-template-columns: 1fr; }
+          .svc-card { padding: 32px 24px 36px; }
         }
       `}</style>
 
@@ -238,25 +289,39 @@ export default function Home() {
       </section>
 
       {/* ── SERVICES ROW ── */}
-      <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-        <div className="svc-row" style={{ display: 'flex' }}>
-          {SERVICES.map(s => (
-            <div key={s.title} className="svc-card">
-              <div className="svc-bg" style={{ backgroundImage: `url(${s.img})` }} />
+      <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', minHeight: 280 }}>
+        <div className="svc-row">
+          {!servicesReady ? [...Array(3)].map((_, index) => (
+            <div key={index} className="svc-card" style={{ pointerEvents: 'none' }}>
+              <div className="svc-content" style={{ opacity: 0.45 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 6, background: '#2b2b2b', marginBottom: 20 }} />
+                <div style={{ width: '72%', height: 26, borderRadius: 4, background: '#242424', marginBottom: 12 }} />
+                <div style={{ width: '88%', height: 16, borderRadius: 4, background: '#202020', marginBottom: 10 }} />
+                <div style={{ width: '62%', height: 16, borderRadius: 4, background: '#202020', marginBottom: 24 }} />
+                <div style={{ width: 110, height: 16, borderRadius: 4, background: '#242424' }} />
+              </div>
+            </div>
+          )) : services.map((service) => {
+            const visual = getServiceVisual(service.name)
+            const categoryQuery = encodeURIComponent(service.name)
+
+            return (
+            <div key={service.id ?? service.name} className="svc-card">
+              <div className="svc-bg" style={{ backgroundImage: `url(${visual.img})` }} />
               <div className="svc-content">
-                <div style={{ marginBottom: 20 }}>{s.icon}</div>
+                <div style={{ marginBottom: 20 }}>{visual.icon}</div>
                 <h3 style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#fff', marginBottom: 10 }}>
-                  {s.title}
+                  {service.name}
                 </h3>
                 <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', marginBottom: 24, lineHeight: 1.6 }}>
-                  {s.desc}
+                  {service.description || 'Premium leather restoration tailored to your category.'}
                 </p>
-                <Link to="/portfolio" className="learn-link">
+                <Link to={`/portfolio?category=${categoryQuery}`} className="learn-link">
                   Learn More →
                 </Link>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       </section>
 

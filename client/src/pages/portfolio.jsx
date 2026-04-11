@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+import { Link, useSearchParams } from 'react-router-dom'
+import { getCategories, getPortfolio } from '../services/api'
 
 function useReveal() {
   const ref = useRef(null)
@@ -24,14 +23,18 @@ function Reveal({ children, delay = 0, style: outerStyle = {} }) {
   return (
     <div
       ref={ref}
+      style={{ height: '100%', ...outerStyle }}
+    >
+      <div
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(32px)',
         transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
-        ...outerStyle,
+        height: '100%',
       }}
     >
       {children}
+      </div>
     </div>
   )
 }
@@ -64,14 +67,18 @@ function PortfolioCard({ item, delay }) {
       <div style={{
         background: '#171717', border: '1.2px solid #262626', borderRadius: 6,
         overflow: 'hidden', transition: 'border-color 0.25s, transform 0.25s',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
       }}
+        className="portfolio-card"
         onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(225,113,0,0.4)'; e.currentTarget.style.transform = 'translateY(-4px)' }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = '#262626'; e.currentTarget.style.transform = 'translateY(0)' }}
       >
         {/* Images */}
-        <div style={{ display: 'flex', height: 363, position: 'relative' }}>
+        <div className="portfolio-card__media" style={{ display: 'flex', position: 'relative', aspectRatio: '12 / 7', minHeight: 280 }}>
           {/* BEFORE */}
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <div className="portfolio-card__panel" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <img
               src={beforeErr ? placeholder : item.before_url}
               alt="before"
@@ -89,7 +96,7 @@ function PortfolioCard({ item, delay }) {
           </div>
 
           {/* AFTER */}
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <div className="portfolio-card__panel" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <img
               src={afterErr ? placeholder : item.after_url}
               alt="after"
@@ -111,6 +118,7 @@ function PortfolioCard({ item, delay }) {
           padding: '25px 24px', borderTop: '1.12px solid #262626',
           background: 'rgba(23,23,23,0.95)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flex: 1,
         }}>
           <div style={{ flex: 1 }}>
             <div style={{
@@ -134,42 +142,47 @@ function PortfolioCard({ item, delay }) {
 }
 
 export default function Portfolio() {
-  const [activeCategory, setActiveCategory] = useState('All')
-  const [categories, setCategories] = useState([{ name: 'All', img_categories: null }])
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedCategory = searchParams.get('category')
+  const [categories, setCategories] = useState([])
+  const [activeCategory, setActiveCategory] = useState(requestedCategory || 'All')
   const [items, setItems] = useState([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const filters = ['All', ...categories.map((category) => category.name)]
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/categories`)
-        const json = await res.json()
-        const data = Array.isArray(json) ? json : (json.data ?? [])
-        const normalized = (Array.isArray(data) ? data : [])
-          .map((c) => ({
-            name: c?.name,
-            img_categories: c?.img_categories || null,
-          }))
-          .filter((c) => Boolean(c.name))
-        if (!cancelled) setCategories([{ name: 'All', img_categories: null }, ...normalized])
-      } catch (err) {
-        console.error('Failed to fetch categories:', err)
-      }
-    })()
-    return () => { cancelled = true }
+    let alive = true
+
+    getCategories()
+      .then(({ data }) => {
+        if (!alive || !Array.isArray(data)) return
+        setCategories(data)
+      })
+      .catch(() => {})
+
+    return () => {
+      alive = false
+    }
   }, [])
+
+  useEffect(() => {
+    if (!requestedCategory) {
+      setActiveCategory('All')
+      return
+    }
+
+    setActiveCategory(requestedCategory)
+  }, [requestedCategory])
 
   const fetchPortfolio = async (cat, pg, append = false) => {
     append ? setLoadingMore(true) : setLoading(true)
     try {
-      const params = new URLSearchParams({ page: pg, limit: 12 })
-      if (cat !== 'All') params.append('category', cat)
-      const res = await fetch(`${API_URL}/api/portfolio?${params}`)
-      const json = await res.json()
+      const params = { page: pg, limit: 12 }
+      if (cat !== 'All') params.category = cat
+      const { data: json } = await getPortfolio(params)
       const data = json.data ?? json
       const tp = json.totalPages ?? 1
       setItems(prev => append ? [...prev, ...data] : data)
@@ -196,6 +209,8 @@ export default function Portfolio() {
   const handleCategoryClick = (cat) => {
     if (cat === activeCategory) return
     setActiveCategory(cat)
+    if (cat === 'All') setSearchParams({})
+    else setSearchParams({ category: cat })
   }
 
   return (
@@ -218,9 +233,39 @@ export default function Portfolio() {
         .load-more-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+        .portfolio-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 32px;
+          align-items: stretch;
+        }
+        .filter-bar {
+          display: flex;
+          gap: 10px;
+          overflow-x: auto;
+          scrollbar-width: none;
+          width: 100%;
+          justify-content: center;
+          padding-bottom: 2px;
+        }
+        .filter-bar::-webkit-scrollbar { display: none; }
         @media (max-width: 900px) {
           .portfolio-grid { grid-template-columns: 1fr !important; }
-          .filter-bar { flex-wrap: wrap !important; }
+          .filter-bar { justify-content: flex-start; }
+        }
+        @media (max-width: 640px) {
+          .filter-btn { white-space: nowrap; }
+          .portfolio-card__media {
+            flex-direction: column;
+            aspect-ratio: auto !important;
+            min-height: 0 !important;
+          }
+          .portfolio-card__panel {
+            min-height: 240px;
+          }
+          .portfolio-card:hover {
+            transform: none !important;
+          }
         }
       `}</style>
 
@@ -247,52 +292,25 @@ export default function Portfolio() {
 
       {/* FILTER BAR */}
       <div style={{
-        position: 'sticky', top: 72, zIndex: 90,
+        position: 'sticky', top: 68, zIndex: 90,
         background: 'rgba(18,18,18,0.97)', backdropFilter: 'blur(12px)',
         borderTop: '1.12px solid #262626', borderBottom: '1.12px solid #262626',
         padding: '18px clamp(24px, 7vw, 128px)',
         display: 'flex', justifyContent: 'center',
       }}>
-        <div className="filter-bar" style={{ display: 'flex', gap: 10 }}>
-          {categories.map((cat) => (
+        <div className="filter-bar">
+          {filters.map(cat => (
             <button
-              key={cat.name}
+              key={cat}
               className="filter-btn"
-              onClick={() => handleCategoryClick(cat.name)}
+              onClick={() => handleCategoryClick(cat)}
               style={{
-                background: activeCategory === cat.name ? '#E17100' : '#171717',
-                color: activeCategory === cat.name ? '#fff' : '#D4D4D4',
-                outline: activeCategory === cat.name ? 'none' : '1.12px solid #262626',
-                boxShadow: activeCategory === cat.name ? '0 4px 15px -4px rgba(123,51,6,0.5)' : 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 18px',
+                background: activeCategory === cat ? '#E17100' : '#171717',
+                color: activeCategory === cat ? '#fff' : '#D4D4D4',
+                outline: activeCategory === cat ? 'none' : '1.12px solid #262626',
+                boxShadow: activeCategory === cat ? '0 4px 15px -4px rgba(123,51,6,0.5)' : 'none',
               }}
-            >
-              {cat.img_categories && cat.name !== 'All' && (
-                <span
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    border: activeCategory === cat.name ? '1px solid rgba(255,255,255,0.32)' : '1px solid #262626',
-                    flexShrink: 0,
-                    background: '#1A1A1A',
-                  }}
-                >
-                  <img
-                    src={cat.img_categories}
-                    alt=""
-                    aria-hidden="true"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    loading="lazy"
-                  />
-                </span>
-              )}
-              <span>{cat.name}</span>
-            </button>
+            >{cat}</button>
           ))}
         </div>
       </div>
@@ -300,7 +318,7 @@ export default function Portfolio() {
       {/* GRID */}
       <section style={{ padding: '80px clamp(24px, 7vw, 128px) 96px', background: '#121212' }}>
         {loading ? (
-          <div className="portfolio-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+          <div className="portfolio-grid">
             {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : items.length === 0 ? (
@@ -311,7 +329,7 @@ export default function Portfolio() {
           </div>
         ) : (
           <>
-            <div className="portfolio-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+            <div className="portfolio-grid">
               {items.map((item, i) => (
                 <PortfolioCard key={item.id} item={item} delay={(i % 2) * 80} />
               ))}

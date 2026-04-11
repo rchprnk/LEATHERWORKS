@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002'
+import { getContact, getPortfolio } from '../services/api'
 
 function useReveal() {
   const ref = useRef(null)
@@ -61,37 +60,59 @@ function ContactCard({ icon, title, children }) {
   )
 }
 
+function normalizeContact(data) {
+  return {
+    phone: data?.phone || '+1 (312) 555-0199',
+    email: data?.email || 'info@primeleatherrepair.com',
+    address: data?.address || '123 Craft Street, Chicago, IL 60614',
+    workingHours: data?.working_hours || 'Mon - Fri: 9:00 AM - 6:00 PM',
+    whatsapp: data?.messenger_whatsapp || '',
+    telegram: data?.messenger_telegram || '',
+  }
+}
+
 export default function Contact() {
-  const [contact, setContact] = useState(null)
+  const [contact, setContact] = useState(() => normalizeContact(null))
   const [studioImg, setStudioImg] = useState(null)
 
   useEffect(() => {
-    fetch(`${API_URL}/api/contact`)
-      .then(r => r.json())
-      .then(data => setContact(data))
-      .catch(() => setContact({
-        phone: '+1 (312) 555-0199',
-        email: 'info@primeleatherrepair.com',
-        address: '123 Craft Street, Chicago, IL 60614',
-        hours: { mon_fri: '9:00 AM - 6:00 PM', saturday: '10:00 AM - 4:00 PM', sunday: 'Closed' },
-        whatsapp: '#',
-        telegram: '#',
-      }))
+    let alive = true
+
+    getContact()
+      .then(({ data }) => {
+        if (!alive) return
+        setContact(normalizeContact(data))
+      })
+      .catch(() => {
+        if (!alive) return
+        setContact(normalizeContact(null))
+      })
+
+    return () => {
+      alive = false
+    }
   }, [])
 
-  // Studio image — first portfolio item's after_url or fallback
   useEffect(() => {
-    fetch(`${API_URL}/api/portfolio?limit=1`)
-      .then(r => r.json())
-      .then(json => {
+    let alive = true
+
+    getPortfolio({ limit: 1, page: 1 })
+      .then(({ data: json }) => {
         const items = json.data ?? json
-        if (items[0]?.after_url) setStudioImg(items[0].after_url)
+        if (alive && items[0]?.after_url) setStudioImg(items[0].after_url)
       })
       .catch(() => {})
+
+    return () => {
+      alive = false
+    }
   }, [])
 
-  const addressLine1 = contact?.address?.split(',')[0] ?? '123 Craft Street'
-  const addressLine2 = contact?.address?.split(',').slice(1).join(',').trim() ?? 'Chicago, IL 60614'
+  const phoneDigits = contact.phone.replace(/\D/g, '')
+  const whatsappHref = contact.whatsapp || (phoneDigits ? `https://wa.me/${phoneDigits}` : '#')
+  const telegramHref = contact.telegram || '#'
+  const addressLine1 = contact.address.split(',')[0] ?? '123 Craft Street'
+  const addressLine2 = contact.address.split(',').slice(1).join(',').trim() ?? 'Chicago, IL 60614'
 
   return (
     <div style={{ background: '#121212', color: '#fff', fontFamily: 'Georgia, serif', overflowX: 'hidden' }}>
@@ -109,8 +130,39 @@ export default function Contact() {
         .msg-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 6px; font-family: var(--sans); font-size: 14px; font-weight: 500; color: #fff; cursor: pointer; transition: opacity 0.2s, transform 0.15s; text-decoration: none; }
         .msg-btn:hover { opacity: 0.88; transform: translateY(-1px); }
         @keyframes fadeUp { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+        .contact-layout {
+          display: grid;
+          grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
+          gap: 32px;
+          align-items: start;
+        }
+        .contact-left {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+        }
+        .contact-right {
+          display: block;
+        }
+        .contact-right-shell {
+          background: #171717;
+          border: 1.12px solid #262626;
+          border-radius: 6px;
+          overflow: hidden;
+        }
+        .contact-split {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+        }
         @media (max-width: 960px) {
-          .contact-layout { flex-direction: column !important; }
+          .contact-layout { grid-template-columns: 1fr; }
+          .contact-left { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 680px) {
+          .contact-split { grid-template-columns: 1fr; }
+          .msg-btn { width: 100%; justify-content: center; }
+          .contact-msg-row { flex-direction: column; }
         }
       `}</style>
 
@@ -137,13 +189,13 @@ export default function Contact() {
 
       {/* MAIN CONTENT */}
       <section style={{ padding: '96px clamp(24px, 7vw, 128px) 96px', background: '#121212' }}>
-        <div className="contact-layout" style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
+        <div className="contact-layout">
 
           {/* LEFT — contact cards */}
-          <div style={{ flex: '0 0 auto', width: 'min(480px, 100%)', display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div className="contact-left">
 
             {/* Phone */}
-            <Reveal delay={0}>
+            <Reveal delay={0} style={{ gridColumn: 'span 1' }}>
               <ContactCard
                 title="Phone"
                 icon={
@@ -153,16 +205,16 @@ export default function Contact() {
                 }
               >
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 18, color: '#FFB900', marginBottom: 6 }}>
-                  {contact?.phone ?? '+1 (312) 555-0199'}
+                  {contact.phone}
                 </div>
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#A1A1A1' }}>
-                  Mon-Fri: {contact?.hours?.mon_fri ?? '9:00 AM - 6:00 PM'}
+                  {contact.workingHours}
                 </div>
               </ContactCard>
             </Reveal>
 
             {/* Email */}
-            <Reveal delay={80}>
+            <Reveal delay={80} style={{ gridColumn: 'span 1' }}>
               <ContactCard
                 title="Email"
                 icon={
@@ -173,7 +225,7 @@ export default function Contact() {
                 }
               >
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 16, color: '#FFB900', marginBottom: 6 }}>
-                  {contact?.email ?? 'info@primeleatherrepair.com'}
+                  {contact.email}
                 </div>
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#A1A1A1' }}>
                   Response within 24 hours
@@ -182,7 +234,7 @@ export default function Contact() {
             </Reveal>
 
             {/* Instant Messaging */}
-            <Reveal delay={160}>
+            <Reveal delay={160} style={{ gridColumn: '1 / -1' }}>
               <ContactCard
                 title="Instant Messaging"
                 icon={
@@ -191,9 +243,9 @@ export default function Contact() {
                   </svg>
                 }
               >
-                <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <div className="contact-msg-row" style={{ display: 'flex', gap: 12, marginTop: 4 }}>
                   <a
-                    href={contact?.whatsapp ?? `https://wa.me/${(contact?.phone ?? '').replace(/\D/g, '')}`}
+                    href={whatsappHref}
                     target="_blank" rel="noreferrer"
                     className="msg-btn"
                     style={{ background: '#00A63E' }}
@@ -204,7 +256,7 @@ export default function Contact() {
                     WhatsApp
                   </a>
                   <a
-                    href={contact?.telegram ?? '#'}
+                    href={telegramHref}
                     target="_blank" rel="noreferrer"
                     className="msg-btn"
                     style={{ background: '#155DFC' }}
@@ -219,12 +271,12 @@ export default function Contact() {
             </Reveal>
 
             {/* Location & Hours */}
-            <Reveal delay={240}>
+            <Reveal delay={240} style={{ gridColumn: '1 / -1' }}>
               <ContactCard
                 title=""
                 icon={null}
               >
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                <div className="contact-split">
                   {/* Location */}
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -248,9 +300,8 @@ export default function Contact() {
                       <span style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500, color: '#F5F5F5' }}>Hours</span>
                     </div>
                     <div style={{ fontFamily: 'var(--sans)', fontSize: 14, lineHeight: 1.8 }}>
-                      <div><span style={{ color: '#D4D4D4' }}>Mon-Fri: </span><span style={{ color: '#FFD230' }}>{contact?.hours?.mon_fri ?? '9AM-6PM'}</span></div>
-                      <div><span style={{ color: '#D4D4D4' }}>Sat: </span><span style={{ color: '#FFD230' }}>{contact?.hours?.saturday ?? '10AM-4PM'}</span></div>
-                      <div style={{ color: '#A1A1A1' }}>Sun: Closed</div>
+                      <div><span style={{ color: '#D4D4D4' }}>Studio Hours: </span><span style={{ color: '#FFD230' }}>{contact.workingHours}</span></div>
+                      <div style={{ color: '#A1A1A1' }}>Appointments available by message</div>
                     </div>
                   </div>
                 </div>
@@ -259,23 +310,15 @@ export default function Contact() {
           </div>
 
           {/* RIGHT — studio card + map */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div className="contact-right">
 
-            {/* Studio card */}
             <Reveal delay={100}>
-              <div style={{
-                background: '#171717', border: '1.12px solid #262626', borderRadius: 6,
-                overflow: 'hidden',
-                transition: 'border-color 0.25s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(225,113,0,0.4)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = '#262626'}
-              >
+              <div className="contact-right-shell">
                 <div style={{ height: 300, overflow: 'hidden' }}>
                   <img
                     src={studioImg || 'https://placehold.co/608x300/171717/404040?text=Our+Studio'}
                     alt="Our Studio"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.5s' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block', transition: 'transform 0.5s' }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                     onError={e => { e.currentTarget.src = 'https://placehold.co/608x300/171717/404040?text=Our+Studio' }}
@@ -290,18 +333,12 @@ export default function Contact() {
                   </p>
                   <div style={{ width: 64, height: 2, background: '#E17100' }} />
                 </div>
-              </div>
-            </Reveal>
-
-            {/* Map */}
-            <Reveal delay={180}>
-              <div style={{ background: '#171717', border: '1.12px solid #262626', borderRadius: 6, overflow: 'hidden' }}>
-                <div style={{ padding: '32px 32px 20px', borderBottom: '1.12px solid #262626' }}>
+                <div style={{ padding: '32px 32px 20px', borderTop: '1.12px solid #262626', borderBottom: '1.12px solid #262626' }}>
                   <div style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500, color: '#F5F5F5', marginBottom: 6 }}>
                     Find Us
                   </div>
                   <div style={{ fontFamily: 'var(--sans)', fontSize: 16, color: '#A1A1A1' }}>
-                    {contact?.address ?? '123 Craft Street, Chicago, IL 60614'}
+                    {contact.address}
                   </div>
                 </div>
                 <div style={{ height: 380 }}>
@@ -313,7 +350,7 @@ export default function Contact() {
                     loading="lazy"
                     allowFullScreen
                     referrerPolicy="no-referrer-when-downgrade"
-                    src={`https://www.google.com/maps?q=${encodeURIComponent(contact?.address ?? '123 Craft Street, Chicago, IL 60614')}&output=embed`}
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(contact.address)}&output=embed`}
                   />
                 </div>
               </div>

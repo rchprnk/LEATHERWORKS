@@ -1,18 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 
-const CATEGORIES = [
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'automotive', label: 'Automotive' },
-  { value: 'footwear', label: 'Footwear' },
-  { value: 'accessories', label: 'Accessories' },
-  { value: 'apparel', label: 'Apparel' },
-]
-
 async function fetchPortfolio() {
   const res = await api.get('/api/portfolio')
-  return res.data
+  return res.data?.data ?? res.data
 }
 
 async function createPortfolio(formData) {
@@ -25,8 +17,23 @@ async function deletePortfolio(id) {
   return res.data
 }
 
+async function fetchCategories() {
+  const res = await api.get('/api/categories')
+  return res.data
+}
+
+async function createCategory(payload) {
+  const res = await api.post('/api/categories', payload)
+  return res.data
+}
+
+async function deleteCategory(id) {
+  const res = await api.delete(`/api/categories/${id}`)
+  return res.data
+}
+
 async function fetchContact() {
-  const res = await api.get('/api/contact')
+  const res = await api.get('/api/contact', { params: { v: 1 } })
   return res.data
 }
 
@@ -49,6 +56,8 @@ function Field({ label, children }) {
 export default function Admin() {
   const qc = useQueryClient()
   const [toast, setToast] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
+  const [deletingCatId, setDeletingCatId] = useState(null)
 
   const styles = useMemo(() => {
     const gold = '#c8902a'
@@ -86,8 +95,43 @@ export default function Admin() {
         color: '#fff',
         cursor: 'pointer',
       },
+      portfolioCard: {
+        background: '#171717',
+        border: '1.2px solid #262626',
+        borderRadius: 6,
+        overflow: 'hidden',
+        boxShadow: '0 18px 60px -34px rgba(0,0,0,0.75)',
+      },
     }
   }, [])
+
+  // Categories
+  const categoriesQuery = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+  })
+
+  const createCategoryMutation = useMutation({
+    mutationFn: createCategory,
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['categories'] })
+      setToast({ type: 'success', text: 'Category added.' })
+    },
+    onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to add category.' }),
+  })
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: deleteCategory,
+    onMutate: async (id) => {
+      setDeletingCatId(id)
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['categories'] })
+      setToast({ type: 'success', text: 'Category deleted.' })
+    },
+    onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to delete category.' }),
+    onSettled: () => setDeletingCatId(null),
+  })
 
   // Portfolio
   const portfolioQuery = useQuery({
@@ -106,23 +150,94 @@ export default function Admin() {
 
   const deleteMutation = useMutation({
     mutationFn: deletePortfolio,
+    onMutate: async (id) => {
+      setDeletingId(id)
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['portfolio'] })
       setToast({ type: 'success', text: 'Deleted.' })
     },
     onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to delete.' }),
+    onSettled: () => setDeletingId(null),
   })
 
   const [newItem, setNewItem] = useState({
     title: '',
     description: '',
-    category: 'furniture',
+    category: '',
     before: null,
     after: null,
   })
 
+  const beforeInputRef = useRef(null)
+  const afterInputRef = useRef(null)
+  const beforeObjectUrlRef = useRef(null)
+  const afterObjectUrlRef = useRef(null)
+  const [beforePreviewUrl, setBeforePreviewUrl] = useState(null)
+  const [afterPreviewUrl, setAfterPreviewUrl] = useState(null)
+
+  useEffect(() => {
+    return () => {
+      if (beforeObjectUrlRef.current) URL.revokeObjectURL(beforeObjectUrlRef.current)
+      if (afterObjectUrlRef.current) URL.revokeObjectURL(afterObjectUrlRef.current)
+    }
+  }, [])
+
+  function setBeforeFile(file) {
+    setNewItem((s) => ({ ...s, before: file }))
+    if (beforeObjectUrlRef.current) URL.revokeObjectURL(beforeObjectUrlRef.current)
+    if (!file) {
+      beforeObjectUrlRef.current = null
+      setBeforePreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    beforeObjectUrlRef.current = url
+    setBeforePreviewUrl(url)
+  }
+
+  function setAfterFile(file) {
+    setNewItem((s) => ({ ...s, after: file }))
+    if (afterObjectUrlRef.current) URL.revokeObjectURL(afterObjectUrlRef.current)
+    if (!file) {
+      afterObjectUrlRef.current = null
+      setAfterPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    afterObjectUrlRef.current = url
+    setAfterPreviewUrl(url)
+  }
+
+  function resetNewWorkForm(formEl) {
+    setNewItem({ title: '', description: '', category: '', before: null, after: null })
+    if (beforeObjectUrlRef.current) URL.revokeObjectURL(beforeObjectUrlRef.current)
+    if (afterObjectUrlRef.current) URL.revokeObjectURL(afterObjectUrlRef.current)
+    beforeObjectUrlRef.current = null
+    afterObjectUrlRef.current = null
+    setBeforePreviewUrl(null)
+    setAfterPreviewUrl(null)
+    if (beforeInputRef.current) beforeInputRef.current.value = ''
+    if (afterInputRef.current) afterInputRef.current.value = ''
+    formEl?.reset?.()
+  }
+
+  function clearBefore() {
+    setBeforeFile(null)
+    if (beforeInputRef.current) beforeInputRef.current.value = ''
+  }
+
+  function clearAfter() {
+    setAfterFile(null)
+    if (afterInputRef.current) afterInputRef.current.value = ''
+  }
+
   async function onSubmitNewItem(e) {
     e.preventDefault()
+    if (!newItem.category) {
+      setToast({ type: 'error', text: 'Please select a category.' })
+      return
+    }
     const fd = new FormData()
     fd.append('title', newItem.title)
     fd.append('description', newItem.description)
@@ -130,8 +245,7 @@ export default function Admin() {
     if (newItem.before) fd.append('before', newItem.before)
     if (newItem.after) fd.append('after', newItem.after)
     await createMutation.mutateAsync(fd)
-    setNewItem({ title: '', description: '', category: 'furniture', before: null, after: null })
-    e.target?.reset?.()
+    resetNewWorkForm(e.target)
   }
 
   // Contact
@@ -144,9 +258,9 @@ export default function Admin() {
     phone: '',
     email: '',
     address: '',
-    mon_fri: '',
-    saturday: '',
-    sunday: '',
+    working_hours: '',
+    messenger_whatsapp: '',
+    messenger_telegram: '',
   })
 
   useEffect(() => {
@@ -156,9 +270,9 @@ export default function Admin() {
       phone: c.phone || '',
       email: c.email || '',
       address: c.address || '',
-      mon_fri: c.hours?.mon_fri || '',
-      saturday: c.hours?.saturday || '',
-      sunday: c.hours?.sunday || '',
+      working_hours: c.working_hours || '',
+      messenger_whatsapp: c.messenger_whatsapp || '',
+      messenger_telegram: c.messenger_telegram || '',
     })
   }, [contactQuery.data])
 
@@ -176,11 +290,9 @@ export default function Admin() {
       phone: contactForm.phone,
       email: contactForm.email,
       address: contactForm.address,
-      hours: {
-        mon_fri: contactForm.mon_fri,
-        saturday: contactForm.saturday,
-        sunday: contactForm.sunday,
-      },
+      working_hours: contactForm.working_hours,
+      messenger_whatsapp: contactForm.messenger_whatsapp,
+      messenger_telegram: contactForm.messenger_telegram,
     })
   }
 
@@ -192,6 +304,21 @@ export default function Admin() {
 
   return (
     <div style={{ minHeight: '100vh', background: styles.bg, color: '#fff', padding: '40px 20px' }}>
+      <style>{`
+        .admin-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .admin-portfolio-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+        .admin-media-frame { position: relative; flex: 1; overflow: hidden; }
+        .admin-media-remove { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; line-height: 1; }
+        .admin-media-remove:hover { background: rgba(0,0,0,0.72); }
+        .admin-media-pill { position: absolute; top: 12px; left: 12px; background: rgba(130,24,26,0.80); border: 1.12px solid #C10007; border-radius: 6px; padding: 7px 13px; font-size: 12px; font-weight: 600; color: #fff; letter-spacing: 0.6px; }
+        .admin-media-pill.after { left: auto; right: 12px; background: rgba(13,84,43,0.80); border-color: #008236; }
+        @media (max-width: 900px) {
+          .admin-portfolio-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 820px) {
+          .admin-grid-2 { grid-template-columns: 1fr; }
+        }
+      `}</style>
       <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gap: 26 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16 }}>
           <div>
@@ -216,6 +343,98 @@ export default function Admin() {
           )}
         </div>
 
+        {/* A) Category Manager */}
+        <section
+          style={{
+            background: styles.panel,
+            border: `1px solid ${styles.border}`,
+            borderRadius: 14,
+            padding: 22,
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 20 }}>Category Manager</h2>
+          <div style={{ height: 1, background: styles.border, margin: '16px 0 18px' }} />
+
+          <div style={{ display: 'grid', gap: 12, marginBottom: 18 }}>
+            {categoriesQuery.isLoading && <div style={{ color: '#cfcfcf' }}>Loading categories…</div>}
+            {categoriesQuery.error && (
+              <div style={{ color: '#ffb3b3' }}>Error: {categoriesQuery.error.message}</div>
+            )}
+
+            {!categoriesQuery.isLoading && !categoriesQuery.error && (categoriesQuery.data || []).length === 0 && (
+              <div style={{ color: '#cfcfcf' }}>No categories yet. Add one below.</div>
+            )}
+
+            {(categoriesQuery.data || []).map((cat) => (
+              <div
+                key={cat.id}
+                style={{
+                  border: `1px solid ${styles.border}`,
+                  borderRadius: 14,
+                  padding: 14,
+                  background: 'rgba(10,10,10,0.40)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: 12,
+                }}
+              >
+                <div style={{ flex: 1, display: 'grid', gap: 6 }}>
+                  <div style={{ fontSize: 16, fontWeight: 600 }}>{cat.name}</div>
+                  {cat.description && <div style={{ color: '#A1A1A1', fontSize: 14, lineHeight: 1.5 }}>{cat.description}</div>}
+                </div>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.buttonDanger,
+                    opacity: deleteCategoryMutation.isPending ? 0.7 : 1,
+                    cursor: deleteCategoryMutation.isPending ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onClick={() => deleteCategoryMutation.mutate(cat.id)}
+                  disabled={deleteCategoryMutation.isPending}
+                >
+                  {cat.id === deletingCatId ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const form = new FormData(e.currentTarget)
+              const name = String(form.get('name') || '').trim()
+              const description = String(form.get('description') || '').trim()
+              await createCategoryMutation.mutateAsync({ name, description: description || null })
+              e.currentTarget.reset()
+            }}
+            style={{
+              border: `1px solid ${styles.border}`,
+              borderRadius: 14,
+              padding: 16,
+              display: 'grid',
+              gap: 14,
+              background: 'rgba(10,10,10,0.40)',
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 600 }}>Add Category</div>
+            <div className="admin-grid-2">
+              <Field label="Name">
+                <input name="name" style={styles.input} placeholder="e.g. Furniture" required />
+              </Field>
+              <Field label="Description">
+                <input name="description" style={styles.input} placeholder="Optional short description…" />
+              </Field>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="submit" style={styles.button} disabled={createCategoryMutation.isPending}>
+                {createCategoryMutation.isPending ? 'Saving…' : 'Add Category'}
+              </button>
+            </div>
+          </form>
+        </section>
+
         {/* A) Portfolio Manager */}
         <section
           style={{
@@ -228,7 +447,7 @@ export default function Admin() {
           <h2 style={{ margin: 0, fontSize: 20 }}>Portfolio Manager</h2>
           <div style={{ height: 1, background: styles.border, margin: '16px 0 18px' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14, marginBottom: 18 }}>
+          <div className="admin-portfolio-grid">
             {portfolioQuery.isLoading && <div style={{ color: '#cfcfcf' }}>Loading portfolio…</div>}
             {portfolioQuery.error && (
               <div style={{ color: '#ffb3b3' }}>Error: {portfolioQuery.error.message}</div>
@@ -239,54 +458,75 @@ export default function Admin() {
             {(portfolioQuery.data || []).map((item) => (
               <div
                 key={item.id}
-                style={{
-                  border: `1px solid ${styles.border}`,
-                  borderRadius: 14,
-                  padding: 16,
-                  background: 'rgba(10,10,10,0.55)',
-                }}
+                style={styles.portfolioCard}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontSize: 18, fontWeight: 600 }}>{item.title}</div>
-                    <div style={{ color: styles.gold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1.6 }}>
-                      {item.category || 'uncategorized'}
-                    </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    height: 363,
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                    <img
+                      src={item.before_url}
+                      alt="Before"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      loading="lazy"
+                    />
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.20)' }} />
+                    <div className="admin-media-pill">BEFORE</div>
                   </div>
-                  <button
-                    type="button"
-                    style={styles.buttonDanger}
-                    onClick={() => deleteMutation.mutate(item.id)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
-                  </button>
+                  <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                    <img
+                      src={item.after_url}
+                      alt="After"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      loading="lazy"
+                    />
+                    <div className="admin-media-pill after">AFTER</div>
+                  </div>
                 </div>
 
                 <div
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
+                    padding: '18px 18px',
+                    borderTop: '1.12px solid #262626',
+                    background: 'rgba(23,23,23,0.95)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
                     gap: 12,
-                    marginTop: 14,
                   }}
                 >
-                  <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${styles.border}` }}>
-                    <img
-                      src={item.before_url}
-                      alt="Before"
-                      style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }}
-                      loading="lazy"
-                    />
+                  <div style={{ display: 'grid', gap: 6, flex: 1 }}>
+                    <div
+                      style={{
+                        color: '#FE9A00',
+                        fontSize: 12,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.6,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {item.category || 'uncategorized'}
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 600 }}>{item.title}</div>
+                    {item.description && <div style={{ color: '#A1A1A1', fontSize: 14, lineHeight: 1.5 }}>{item.description}</div>}
                   </div>
-                  <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${styles.border}` }}>
-                    <img
-                      src={item.after_url}
-                      alt="After"
-                      style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }}
-                      loading="lazy"
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.buttonDanger,
+                      opacity: deleteMutation.isPending ? 0.7 : 1,
+                      cursor: deleteMutation.isPending ? 'not-allowed' : 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => deleteMutation.mutate(item.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {item.id === deletingId ? 'Deleting…' : 'Delete'}
+                  </button>
                 </div>
               </div>
             ))}
@@ -308,7 +548,7 @@ export default function Admin() {
               <div style={{ color: '#bdbdbd', fontSize: 12 }}>Uploads to Supabase bucket: portfolio</div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="admin-grid-2">
               <Field label="Title">
                 <input
                   value={newItem.title}
@@ -324,10 +564,15 @@ export default function Admin() {
                   value={newItem.category}
                   onChange={(e) => setNewItem((s) => ({ ...s, category: e.target.value }))}
                   style={styles.input}
+                  required
+                  disabled={categoriesQuery.isLoading || (categoriesQuery.data || []).length === 0}
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
+                  <option value="" disabled>
+                    {(categoriesQuery.data || []).length === 0 ? 'No categories (add one above)' : 'Select a category…'}
+                  </option>
+                  {(categoriesQuery.data || []).map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -343,30 +588,86 @@ export default function Admin() {
               />
             </Field>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="admin-grid-2">
               <Field label="Before Photo">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setNewItem((s) => ({ ...s, before: e.target.files?.[0] || null }))}
-                  style={styles.input}
-                  required
-                />
+                <>
+                  <input
+                    ref={beforeInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setBeforeFile(e.target.files?.[0] || null)}
+                    style={styles.input}
+                    required
+                  />
+                  {beforePreviewUrl && (
+                    <div
+                      style={{
+                        ...styles.portfolioCard,
+                        marginTop: 10,
+                        height: 220,
+                      }}
+                    >
+                      <div style={{ display: 'flex', height: '100%' }}>
+                        <div className="admin-media-frame">
+                          <img
+                            src={beforePreviewUrl}
+                            alt="Before preview"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                          <div className="admin-media-pill">BEFORE</div>
+                          <button className="admin-media-remove" type="button" onClick={clearBefore} aria-label="Remove before image">
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               </Field>
 
               <Field label="After Photo">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setNewItem((s) => ({ ...s, after: e.target.files?.[0] || null }))}
-                  style={styles.input}
-                  required
-                />
+                <>
+                  <input
+                    ref={afterInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setAfterFile(e.target.files?.[0] || null)}
+                    style={styles.input}
+                    required
+                  />
+                  {afterPreviewUrl && (
+                    <div
+                      style={{
+                        ...styles.portfolioCard,
+                        marginTop: 10,
+                        height: 220,
+                      }}
+                    >
+                      <div style={{ display: 'flex', height: '100%' }}>
+                        <div className="admin-media-frame">
+                          <img
+                            src={afterPreviewUrl}
+                            alt="After preview"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                          <div className="admin-media-pill after">AFTER</div>
+                          <button className="admin-media-remove" type="button" onClick={clearAfter} aria-label="Remove after image">
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               </Field>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="submit" style={styles.button} disabled={createMutation.isPending}>
+              <button
+                type="submit"
+                style={styles.button}
+                disabled={createMutation.isPending || categoriesQuery.isLoading || (categoriesQuery.data || []).length === 0 || !newItem.category}
+              >
                 {createMutation.isPending ? 'Uploading…' : 'Add to Portfolio'}
               </button>
             </div>
@@ -418,32 +719,34 @@ export default function Admin() {
                 />
               </Field>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                <Field label="Mon-Fri Hours">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Working Hours (Mon–Fri)">
                   <input
-                    value={contactForm.mon_fri}
-                    onChange={(e) => setContactForm((s) => ({ ...s, mon_fri: e.target.value }))}
+                    value={contactForm.working_hours}
+                    onChange={(e) => setContactForm((s) => ({ ...s, working_hours: e.target.value }))}
                     style={styles.input}
-                    placeholder="9:00 AM - 6:00 PM"
+                    placeholder="9AM - 6PM"
                   />
                 </Field>
-                <Field label="Saturday Hours">
+
+                <Field label="WhatsApp Link">
                   <input
-                    value={contactForm.saturday}
-                    onChange={(e) => setContactForm((s) => ({ ...s, saturday: e.target.value }))}
+                    value={contactForm.messenger_whatsapp}
+                    onChange={(e) => setContactForm((s) => ({ ...s, messenger_whatsapp: e.target.value }))}
                     style={styles.input}
-                    placeholder="10:00 AM - 4:00 PM"
-                  />
-                </Field>
-                <Field label="Sunday Hours">
-                  <input
-                    value={contactForm.sunday}
-                    onChange={(e) => setContactForm((s) => ({ ...s, sunday: e.target.value }))}
-                    style={styles.input}
-                    placeholder="Closed"
+                    placeholder="https://wa.me/13125550199"
                   />
                 </Field>
               </div>
+
+              <Field label="Telegram Link">
+                <input
+                  value={contactForm.messenger_telegram}
+                  onChange={(e) => setContactForm((s) => ({ ...s, messenger_telegram: e.target.value }))}
+                  style={styles.input}
+                  placeholder="https://t.me/yourhandle"
+                />
+              </Field>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button type="button" style={styles.button} onClick={onSaveContact} disabled={saveMutation.isPending}>

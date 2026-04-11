@@ -1,4 +1,5 @@
 import multer from 'multer'
+import { randomUUID } from 'node:crypto'
 import supabase from '../supabase.js'
 
 const storage = multer.memoryStorage()
@@ -21,7 +22,7 @@ export async function uploadToPortfolioBucket(file, { prefix = '' } = {}) {
 
   const ext = getFileExt(file.originalname)
   const safeExt = ext ? `.${ext}` : ''
-  const path = `${prefix}${crypto.randomUUID()}${safeExt}`
+  const path = `${prefix}${randomUUID()}${safeExt}`
 
   const { error: uploadError } = await supabase.storage
     .from('portfolio')
@@ -30,7 +31,11 @@ export async function uploadToPortfolioBucket(file, { prefix = '' } = {}) {
       upsert: false,
     })
 
-  if (uploadError) throw new Error(uploadError.message)
+  if (uploadError) {
+    const err = new Error(uploadError.message)
+    err.statusCode = uploadError.statusCode || uploadError.status || 500
+    throw err
+  }
 
   const { data } = supabase.storage.from('portfolio').getPublicUrl(path)
   if (!data?.publicUrl) throw new Error('Failed to generate public URL')
@@ -50,4 +55,3 @@ export function getPortfolioPathFromPublicUrl(publicUrl) {
     return null
   }
 }
-

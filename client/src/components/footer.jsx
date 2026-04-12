@@ -1,12 +1,45 @@
-import React from 'react';
-
-const HOURS = [
-  { day: 'Mon – Fri', time: '9:00 AM – 6:00 PM' },
-  { day: 'Saturday', time: '10:00 AM – 4:00 PM' },
-  { day: 'Sunday', time: 'Closed' },
-];
+import React, { useEffect, useMemo, useState } from 'react';
+import { getContact } from '../services/api'
 
 export function Footer() {
+  const [contact, setContact] = useState({
+    phone: '+1 (312) 555-0199',
+    email: 'info@primeleatherrepair.com',
+    address: '123 Craft Street, Chicago, IL 60614',
+    workingHours: 'Mon - Fri: 9:00 AM - 6:00 PM',
+  })
+
+  useEffect(() => {
+    let alive = true
+
+    getContact()
+      .then(({ data }) => {
+        if (!alive) return
+        setContact({
+          phone: data?.phone || '+1 (312) 555-0199',
+          email: data?.email || 'info@primeleatherrepair.com',
+          address: data?.address || '123 Craft Street, Chicago, IL 60614',
+          workingHours: data?.working_hours || 'Mon - Fri: 9:00 AM - 6:00 PM',
+        })
+      })
+      .catch(() => {})
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const footerHours = useMemo(() => {
+    const raw = String(contact.workingHours || '').trim()
+    const weekdayTime =
+      raw.replace(/^(mon|monday)\s*[-–]\s*(fri|friday)\s*:?\s*/i, '').trim() || raw
+
+    return [
+      { day: 'Mon - Fri', time: weekdayTime || '9:00AM - 6:00PM' },
+      { day: 'Sunday', time: 'Closed' },
+    ]
+  }, [contact.workingHours])
+
   return (
     <footer id="contact" className="site-footer" style={{ 
       background: 'var(--bg3)', 
@@ -38,15 +71,15 @@ export function Footer() {
           {[
             {
               icon: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
-              text: '+1 (312) 555-0199',
+              text: contact.phone,
             },
             {
               icon: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
-              text: 'info@primeleatherrepair.com',
+              text: contact.email,
             },
             {
               icon: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-              text: '123 Craft Street, Chicago, IL 60614',
+              text: contact.address,
             },
           ].map((c, i) => (
             <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start', color: 'var(--text-dim)' }}>
@@ -61,11 +94,13 @@ export function Footer() {
           <h4 style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '3px', marginBottom: 24 }}>
             Hours
           </h4>
-          {HOURS.map(h => (
-            <div key={h.day} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)' }}>{h.day}</span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 500, color: h.time === 'Closed' ? '#555' : 'var(--gold-pale)' }}>
-                {h.time}
+          {footerHours.map((item) => (
+            <div key={item.day} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)' }}>
+                {item.day}
+              </span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 500, color: item.time === 'Closed' ? '#666' : 'var(--gold-pale)', textAlign: 'right' }}>
+                {item.time}
               </span>
             </div>
           ))}
@@ -74,7 +109,7 @@ export function Footer() {
 
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 28, textAlign: 'center' }}>
         <p style={{ fontFamily: 'var(--sans)', fontSize: 13, color: '#444' }}>
-          © 2026 Prime Leather Repair. All rights reserved.
+          © Prime Leather Repair. All rights reserved.
         </p>
       </div>
     </footer>

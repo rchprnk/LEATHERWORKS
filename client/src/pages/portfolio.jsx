@@ -44,7 +44,7 @@ function SkeletonCard() {
     <div style={{
       background: '#171717', border: '1.2px solid #262626', borderRadius: 6, overflow: 'hidden',
     }}>
-      <div style={{ display: 'flex', height: 363 }}>
+      <div style={{ display: 'flex', aspectRatio: '8 / 5' }}>
         <div style={{ flex: 1, background: '#1e1e1e', animation: 'pulse 1.5s ease-in-out infinite' }} />
         <div style={{ flex: 1, background: '#1a1a1a', animation: 'pulse 1.5s ease-in-out infinite 0.3s' }} />
       </div>
@@ -57,87 +57,85 @@ function SkeletonCard() {
   )
 }
 
-function PortfolioCard({ item, delay }) {
+function PortfolioCard({ item }) {
   const [beforeErr, setBeforeErr] = useState(false)
   const [afterErr, setAfterErr] = useState(false)
   const placeholder = 'https://placehold.co/363x363/171717/404040?text=No+Image'
 
   return (
-    <Reveal delay={delay}>
-      <div style={{
-        background: '#171717', border: '1.2px solid #262626', borderRadius: 6,
-        overflow: 'hidden', transition: 'border-color 0.25s, transform 0.25s',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-        className="portfolio-card"
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(225,113,0,0.4)'; e.currentTarget.style.transform = 'translateY(-4px)' }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = '#262626'; e.currentTarget.style.transform = 'translateY(0)' }}
-      >
-        {/* Images */}
-        <div className="portfolio-card__media" style={{ display: 'flex', position: 'relative', aspectRatio: '12 / 7', minHeight: 280 }}>
-          {/* BEFORE */}
-          <div className="portfolio-card__panel" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-            <img
-              src={beforeErr ? placeholder : item.before_url}
-              alt="before"
-              onError={() => setBeforeErr(true)}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.20)' }} />
-            <div style={{
-              position: 'absolute', top: 16, left: 16,
-              background: 'rgba(130,24,26,0.80)', border: '1.12px solid #C10007',
-              borderRadius: 6, padding: '7px 13px',
-              fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600,
-              color: '#fff', letterSpacing: '0.6px',
-            }}>BEFORE</div>
-          </div>
-
-          {/* AFTER */}
-          <div className="portfolio-card__panel" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-            <img
-              src={afterErr ? placeholder : item.after_url}
-              alt="after"
-              onError={() => setAfterErr(true)}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
-            <div style={{
-              position: 'absolute', top: 16, right: 16,
-              background: 'rgba(13,84,43,0.80)', border: '1.12px solid #008236',
-              borderRadius: 6, padding: '7px 13px',
-              fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600,
-              color: '#fff', letterSpacing: '0.6px',
-            }}>AFTER</div>
-          </div>
+    <div style={{
+      background: '#171717', border: '1.2px solid #262626', borderRadius: 6,
+      overflow: 'hidden', transition: 'border-color 0.25s, transform 0.25s',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+    }}
+      className="portfolio-card"
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(225,113,0,0.4)'; e.currentTarget.style.transform = 'translateY(-4px)' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = '#262626'; e.currentTarget.style.transform = 'translateY(0)' }}
+    >
+      {/* Images */}
+      <div className="portfolio-card__media" style={{ display: 'flex', position: 'relative', aspectRatio: '8 / 5', minHeight: 320 }}>
+        {/* BEFORE */}
+        <div className="portfolio-card__panel" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <img
+            src={beforeErr ? placeholder : item.before_url}
+            alt="before"
+            onError={() => setBeforeErr(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.20)' }} />
+          <div style={{
+            position: 'absolute', top: 16, left: 16,
+            background: 'rgba(130,24,26,0.80)', border: '1.12px solid #C10007',
+            borderRadius: 6, padding: '7px 13px',
+            fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600,
+            color: '#fff', letterSpacing: '0.6px',
+          }}>BEFORE</div>
         </div>
 
-        {/* Info */}
-        <div style={{
-          padding: '25px 24px', borderTop: '1.12px solid #262626',
-          background: 'rgba(23,23,23,0.95)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          flex: 1,
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{
-              fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
-              color: '#FE9A00', textTransform: 'uppercase', letterSpacing: '0.6px',
-              marginBottom: 6,
-            }}>{item.category}</div>
-            <div style={{
-              fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500,
-              color: '#fff', lineHeight: 1.3, marginBottom: 6,
-            }}>{item.title}</div>
-            <div style={{
-              fontFamily: 'var(--sans)', fontSize: 14, color: '#A1A1A1', lineHeight: 1.5,
-            }}>{item.description}</div>
-          </div>
-          <div style={{ width: 2, height: 48, background: '#E17100', marginLeft: 24, flexShrink: 0 }} />
+        {/* AFTER */}
+        <div className="portfolio-card__panel" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <img
+            src={afterErr ? placeholder : item.after_url}
+            alt="after"
+            onError={() => setAfterErr(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+          <div style={{
+            position: 'absolute', top: 16, right: 16,
+            background: 'rgba(13,84,43,0.80)', border: '1.12px solid #008236',
+            borderRadius: 6, padding: '7px 13px',
+            fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600,
+            color: '#fff', letterSpacing: '0.6px',
+          }}>AFTER</div>
         </div>
       </div>
-    </Reveal>
+
+      {/* Info */}
+      <div className="portfolio-card__content" style={{
+        padding: '25px 24px', borderTop: '1.12px solid #262626',
+        background: 'rgba(23,23,23,0.95)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flex: 1,
+      }}>
+        <div style={{ flex: 1 }}>
+          <div className="portfolio-card__category" style={{
+            fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
+            color: '#FE9A00', textTransform: 'uppercase', letterSpacing: '0.6px',
+            marginBottom: 6,
+          }}>{item.category}</div>
+          <div className="portfolio-card__title" style={{
+            fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500,
+            color: '#fff', lineHeight: 1.3, marginBottom: 6,
+          }}>{item.title}</div>
+          <div className="portfolio-card__description" style={{
+            fontFamily: 'var(--sans)', fontSize: 14, color: '#A1A1A1', lineHeight: 1.5,
+          }}>{item.description}</div>
+        </div>
+        <div className="portfolio-card__accent" style={{ width: 2, height: 48, background: '#E17100', marginLeft: 24, flexShrink: 0 }} />
+      </div>
+    </div>
   )
 }
 
@@ -238,6 +236,28 @@ export default function Portfolio() {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 32px;
           align-items: stretch;
+          transition: opacity 0.2s ease;
+        }
+        .portfolio-card {
+          animation: cardFadeIn 0.28s ease;
+        }
+        .portfolio-card__category,
+        .portfolio-card__title,
+        .portfolio-card__description {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+        .portfolio-card__title {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .portfolio-card__description {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
         .filter-bar {
           display: flex;
@@ -246,22 +266,58 @@ export default function Portfolio() {
           scrollbar-width: none;
           width: 100%;
           justify-content: center;
-          padding-bottom: 2px;
+          padding: 2px 10px;
         }
         .filter-bar::-webkit-scrollbar { display: none; }
+        @keyframes cardFadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @media (max-width: 900px) {
           .portfolio-grid { grid-template-columns: 1fr !important; }
           .filter-bar { justify-content: flex-start; }
         }
         @media (max-width: 640px) {
-          .filter-btn { white-space: nowrap; }
+          .portfolio-grid {
+            gap: 14px;
+          }
+          .filter-bar {
+            justify-content: center !important;
+            flex-wrap: wrap;
+            overflow: visible;
+            padding: 2px 0;
+          }
+          .filter-btn {
+            white-space: nowrap;
+            font-size: 12px !important;
+            padding: 11px 16px !important;
+          }
+          .portfolio-card__content {
+            padding: 14px 12px !important;
+          }
+          .portfolio-card__accent {
+            height: 28px !important;
+            margin-left: 10px !important;
+          }
           .portfolio-card__media {
-            flex-direction: column;
-            aspect-ratio: auto !important;
+            flex-direction: row;
+            aspect-ratio: 8 / 5 !important;
             min-height: 0 !important;
           }
           .portfolio-card__panel {
-            min-height: 240px;
+            aspect-ratio: auto;
+            min-height: 0;
+          }
+          .portfolio-card__panel > div {
+            top: 10px !important;
+            left: 10px !important;
+            right: auto !important;
+            padding: 5px 10px !important;
+            font-size: 10px !important;
+          }
+          .portfolio-card__panel:last-child > div {
+            left: auto !important;
+            right: 10px !important;
           }
           .portfolio-card:hover {
             transform: none !important;
@@ -295,7 +351,7 @@ export default function Portfolio() {
         position: 'sticky', top: 68, zIndex: 90,
         background: 'rgba(18,18,18,0.97)', backdropFilter: 'blur(12px)',
         borderTop: '1.12px solid #262626', borderBottom: '1.12px solid #262626',
-        padding: '18px clamp(24px, 7vw, 128px)',
+        padding: '18px clamp(14px, 4vw, 128px)',
         display: 'flex', justifyContent: 'center',
       }}>
         <div className="filter-bar">
@@ -330,8 +386,8 @@ export default function Portfolio() {
         ) : (
           <>
             <div className="portfolio-grid">
-              {items.map((item, i) => (
-                <PortfolioCard key={item.id} item={item} delay={(i % 2) * 80} />
+              {items.map((item) => (
+                <PortfolioCard key={item.id} item={item} />
               ))}
             </div>
 
@@ -351,20 +407,6 @@ export default function Portfolio() {
         )}
       </section>
 
-      {/* FAB */}
-      <Link to="/contact" style={{
-        position: 'fixed', bottom: 32, right: 32, zIndex: 50,
-        width: 52, height: 52, borderRadius: '50%', background: 'var(--gold)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 8px 30px rgba(0,0,0,0.4)', transition: 'transform 0.2s',
-      }}
-        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
-        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-        aria-label="Get a quote">
-        <svg width="20" height="20" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      </Link>
     </div>
   )
 }

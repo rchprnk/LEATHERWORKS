@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Star, MessageSquare } from "lucide-react";
 
 // Макет даних для майбутнього Google Maps API
@@ -40,6 +40,49 @@ const reviewsData = [
     verified: "Verified via WhatsApp"
   }
 ];
+
+function useReveal() {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.14 }
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  return [ref, visible]
+}
+
+function Reveal({ children, delay = 0, style: outerStyle = {} }) {
+  const [ref, visible] = useReveal()
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(30px)',
+        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
+        ...outerStyle,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
 
 const Reviews = () => {
   return (
@@ -103,108 +146,106 @@ const Reviews = () => {
 
       <section style={{ paddingTop: 132, paddingBottom: 72, background: '#121212', textAlign: 'center' }}>
         <div className="reviews-shell" style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <h1 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(42px, 6vw, 68px)', color: '#fff', marginBottom: 16 }}>
-            Client Reviews
-          </h1>
-          <p style={{ fontFamily: 'var(--sans)', color: '#9ca3af', maxWidth: 720, margin: '0 auto 44px', fontSize: 18, lineHeight: 1.6 }}>
-            See what our satisfied customers say about our premium leather restoration services
-          </p>
+          <Reveal>
+            <h1 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(42px, 6vw, 68px)', color: '#fff', marginBottom: 16 }}>
+              Client Reviews
+            </h1>
+            <p style={{ fontFamily: 'var(--sans)', color: '#9ca3af', maxWidth: 720, margin: '0 auto 44px', fontSize: 18, lineHeight: 1.6 }}>
+              See what our satisfied customers say about our premium leather restoration services
+            </p>
+          </Reveal>
 
-          <div className="reviews-stats">
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 6, justifyContent: 'center' }}>
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={20} color="#f59e0b" fill="#f59e0b" />
-                ))}
+          <Reveal delay={120}>
+            <div className="reviews-stats">
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 6, justifyContent: 'center' }}>
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={20} color="#f59e0b" fill="#f59e0b" />
+                  ))}
+                </div>
+                <p style={{ fontFamily: 'var(--sans)', fontSize: 30, fontWeight: 700 }}>5.0</p>
+                <p style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#737373', textTransform: 'uppercase', letterSpacing: '0.28em', marginTop: 6 }}>
+                  Average Rating
+                </p>
               </div>
-              <p style={{ fontFamily: 'var(--sans)', fontSize: 30, fontWeight: 700 }}>5.0</p>
-              <p style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#737373', textTransform: 'uppercase', letterSpacing: '0.28em', marginTop: 6 }}>
-                Average Rating
-              </p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
-                <MessageSquare size={40} color="#f59e0b" />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+                  <MessageSquare size={40} color="#f59e0b" />
+                </div>
+                <p style={{ fontFamily: 'var(--sans)', fontSize: 30, fontWeight: 700 }}>200+</p>
+                <p style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#737373', textTransform: 'uppercase', letterSpacing: '0.28em', marginTop: 6 }}>
+                  Happy Clients
+                </p>
               </div>
-              <p style={{ fontFamily: 'var(--sans)', fontSize: 30, fontWeight: 700 }}>200+</p>
-              <p style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#737373', textTransform: 'uppercase', letterSpacing: '0.28em', marginTop: 6 }}>
-                Happy Clients
-              </p>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       <section style={{ padding: '80px 0 110px' }}>
         <div className="reviews-shell" style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div className="reviews-grid">
-            {reviewsData.map((review) => (
-              <div 
-                key={review.id} 
-                style={{
-                  background: '#fff',
-                  padding: 32,
-                  borderRadius: 20,
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
-                  border: '1px solid #f4efe7',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: 280,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-                  <div style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '50%',
-                    background: '#fef3c7',
+            {reviewsData.map((review, index) => (
+              <Reveal key={review.id} delay={index * 90} style={{ height: '100%' }}>
+                <div 
+                  style={{
+                    background: '#fff',
+                    padding: 32,
+                    borderRadius: 20,
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
+                    border: '1px solid #f4efe7',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#92400e',
-                    fontFamily: 'var(--sans)',
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}>
-                    {review.name.charAt(0)}
+                    flexDirection: 'column',
+                    minHeight: 280,
+                    height: '100%',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                    <div style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: '#fef3c7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#92400e',
+                      fontFamily: 'var(--sans)',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}>
+                      {review.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h3 style={{ fontFamily: 'var(--sans)', fontWeight: 700, color: '#171717', lineHeight: 1.2, marginBottom: 4 }}>{review.name}</h3>
+                      <p style={{ fontFamily: 'var(--sans)', fontSize: 12, color: '#737373' }}>{review.service}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 style={{ fontFamily: 'var(--sans)', fontWeight: 700, color: '#171717', lineHeight: 1.2, marginBottom: 4 }}>{review.name}</h3>
-                    <p style={{ fontFamily: 'var(--sans)', fontSize: 12, color: '#737373' }}>{review.service}</p>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+                    {[...Array(review.rating)].map((_, i) => (
+                      <Star key={i} size={16} color="#f59e0b" fill="#f59e0b" />
+                    ))}
+                    <span style={{ fontFamily: 'var(--sans)', fontSize: 12, color: '#9ca3af', marginLeft: 8 }}>{review.date}</span>
+                  </div>
+
+                  <p style={{ fontFamily: 'var(--sans)', color: '#404040', fontSize: 14, lineHeight: 1.75, marginBottom: 24, flexGrow: 1 }}>
+                    "{review.text}"
+                  </p>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 16, borderTop: '1px solid #f3f4f6' }}>
+                    <MessageSquare size={12} color="#9ca3af" />
+                    <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.18em' }}>
+                      {review.verified}
+                    </span>
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
-                  {[...Array(review.rating)].map((_, i) => (
-                    <Star key={i} size={16} color="#f59e0b" fill="#f59e0b" />
-                  ))}
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 12, color: '#9ca3af', marginLeft: 8 }}>{review.date}</span>
-                </div>
-
-                <p style={{ fontFamily: 'var(--sans)', color: '#404040', fontSize: 14, lineHeight: 1.75, marginBottom: 24, flexGrow: 1 }}>
-                  "{review.text}"
-                </p>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 16, borderTop: '1px solid #f3f4f6' }}>
-                  <MessageSquare size={12} color="#9ca3af" />
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.18em' }}>
-                    {review.verified}
-                  </span>
-                </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      <div className="reviews-fab">
-        <a href="https://wa.me/13125550199" target="_blank" rel="noreferrer" className="reviews-fab-link" style={{ background: '#25D366' }}>
-          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" style={{ width: 24, height: 24 }} alt="WhatsApp" />
-        </a>
-        <a href="https://t.me/primeleatherrepair" target="_blank" rel="noreferrer" className="reviews-fab-link" style={{ background: '#0088cc' }}>
-          <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" style={{ width: 24, height: 24 }} alt="Telegram" />
-        </a>
-      </div>
     </div>
   );
 };

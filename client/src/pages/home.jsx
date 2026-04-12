@@ -3,7 +3,7 @@ import crafterImg from '../assets/crafter.png'
 import commercial1Img from '../assets/commercial-1.png'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getCategories } from '../services/api'
+import { getCategories, getPortfolio } from '../services/api'
 
 // Функція для анімації появи (залишаємо її тут)
 function useReveal() {
@@ -105,7 +105,12 @@ function normalizeCategoryKey(name = '') {
 
 function getServiceVisual(name) {
   const key = normalizeCategoryKey(name)
-  return SERVICE_VISUALS[key] || SERVICE_VISUALS.default
+  const visual = SERVICE_VISUALS[key] || SERVICE_VISUALS.default
+
+  return {
+    ...visual,
+    icon: SERVICE_VISUALS.default.icon,
+  }
 }
 
 export default function Home() {
@@ -115,11 +120,36 @@ export default function Home() {
   useEffect(() => {
     let alive = true
 
-    getCategories()
-      .then(({ data }) => {
+    Promise.allSettled([getCategories(), getPortfolio({ page: 1, limit: 100 })])
+      .then(([categoriesResult, portfolioResult]) => {
         if (!alive) return
-        if (Array.isArray(data) && data.length > 0) setServices(data)
-        else setServices(DEFAULT_SERVICES)
+        const categoriesData =
+          categoriesResult.status === 'fulfilled' && Array.isArray(categoriesResult.value.data)
+            ? categoriesResult.value.data
+            : []
+        const portfolioJson =
+          portfolioResult.status === 'fulfilled'
+            ? portfolioResult.value.data
+            : []
+        const works = Array.isArray(portfolioJson?.data)
+          ? portfolioJson.data
+          : Array.isArray(portfolioJson)
+            ? portfolioJson
+            : []
+        const sourceCategories = categoriesData.length > 0 ? categoriesData : DEFAULT_SERVICES
+
+        setServices(
+          sourceCategories.map((category) => {
+            const match = works.find(
+              (item) => normalizeCategoryKey(item.category) === normalizeCategoryKey(category.name)
+            )
+
+            return {
+              ...category,
+              imageUrl: category.img_categories || match?.after_url || match?.before_url || null,
+            }
+          })
+        )
         setServicesReady(true)
       })
       .catch(() => {
@@ -185,9 +215,9 @@ export default function Home() {
         }
         .svc-card {
           position: relative; overflow: hidden; flex: 1;
-          min-height: 280px;
+          min-height: 0;
           border-right: 1px solid var(--border);
-          padding: 40px 36px 44px;
+          padding: 18px 22px 14px;
           transition: background 0.3s;
         }
         .svc-card:last-child { border-right: none; }
@@ -198,8 +228,26 @@ export default function Home() {
         }
         .svc-card:hover .svc-bg { opacity: 0.18; }
         .svc-content { position: relative; z-index: 1; }
+        .svc-title {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-wrap: balance;
+          overflow-wrap: anywhere;
+        }
+        .svc-desc {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
         .learn-link {
           display: inline-flex; align-items: center; gap: 6px;
+          width: 100%;
+          justify-content: flex-end;
           font-family: var(--sans); font-size: 14px; font-weight: 500;
           color: var(--gold-light); text-decoration: none; transition: gap 0.2s;
         }
@@ -238,17 +286,73 @@ export default function Home() {
           .why-col:nth-child(2n) { padding-left: 20px !important; }
           .craft-flex, .commercial-flex { flex-direction: column !important; }
           .svc-row { grid-template-columns: 1fr !important; }
-          .svc-card { border-right: none; border-bottom: 1px solid var(--border); min-height: 240px; }
-          .svc-bg { opacity: 0.2; }
+          .svc-card { border-right: none; border-bottom: 1px solid var(--border); min-height: 0; padding: 12px 16px 10px; }
+          .svc-card:last-child { border-bottom: none; }
+          .svc-content h3 { font-size: 18px !important; }
+          .svc-content p { margin-bottom: 8px !important; }
         }
         @media (max-width: 600px) {
+          .home-hero {
+            height: 64vh !important;
+            min-height: 520px;
+          }
+          .home-hero__content {
+            top: 50%;
+            bottom: auto !important;
+            transform: translateY(-50%);
+            padding: 0 20px !important;
+            text-align: center;
+          }
+          .home-hero__inner {
+            max-width: 100% !important;
+            margin: 0 auto;
+            text-align: center;
+          }
+          .home-hero__title {
+            font-size: 38px !important;
+            line-height: 1.06 !important;
+            margin-bottom: 14px !important;
+          }
+          .home-hero__text {
+            font-size: 13px !important;
+            line-height: 1.55 !important;
+            margin: 0 auto 20px !important;
+            max-width: 290px !important;
+          }
+          .home-hero__actions {
+            flex-direction: column;
+            align-items: center;
+            gap: 10px !important;
+          }
+          .btn-primary,
+          .btn-outline {
+            width: min(100%, 220px);
+            justify-content: center;
+            padding: 12px 16px !important;
+            font-size: 12px !important;
+          }
           .why-grid { grid-template-columns: 1fr; }
-          .svc-card { padding: 32px 24px 36px; }
+          .svc-row { grid-template-columns: 1fr !important; }
+          .svc-card {
+            min-height: auto;
+            padding: 10px 14px 8px;
+            border-bottom: 1px solid var(--border);
+          }
+          .svc-bg { display: none; }
+          .svc-content svg { width: 20px; height: 20px; margin-bottom: 8px; }
+          .svc-content h3 { font-size: 17px !important; margin-bottom: 4px !important; }
+          .svc-content p { font-size: 12px !important; line-height: 1.45 !important; margin-bottom: 10px !important; }
+          .learn-link {
+            width: 100%;
+            justify-content: flex-end;
+            font-size: 11px !important;
+            letter-spacing: 0.04em;
+          }
         }
       `}</style>
 
       {/* ── HERO ── */}
-      <section style={{ position: 'relative', height: 'min(920px, 93vh)', overflow: 'hidden' }}>
+      <section className="home-hero" style={{ position: 'relative', height: 'min(920px, 93vh)', overflow: 'hidden' }}>
         <img
           src={heroImg}
           alt="leather craftsman"
@@ -257,26 +361,26 @@ export default function Home() {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(13,13,13,0.88) 0%, rgba(13,13,13,0.45) 60%, rgba(13,13,13,0.1) 100%)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(13,13,13,0.5) 0%, transparent 40%, rgba(13,13,13,0.8) 100%)' }} />
 
-        <div style={{
+        <div className="home-hero__content" style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
-          padding: '0 clamp(24px, 6vw, 100px) clamp(60px, 8vw, 100px)',
+          padding: '0 clamp(24px, 6vw, 100px) clamp(120px, 12vw, 170px)',
         }}>
-          <div style={{ maxWidth: 680 }}>
-            <h1 style={{
+          <div className="home-hero__inner" style={{ maxWidth: 680 }}>
+            <h1 className="home-hero__title" style={{
               opacity: 0, animation: 'fadeUp 0.8s 0.3s forwards',
               fontFamily: 'var(--serif)', fontSize: 'clamp(44px, 6vw, 82px)',
               fontWeight: 500, lineHeight: 1.12, color: '#fff', marginBottom: 20,
             }}>
               The Master Art of<br />Leather Restoration
             </h1>
-            <p style={{
+            <p className="home-hero__text" style={{
               opacity: 0, animation: 'fadeUp 0.8s 0.5s forwards',
               fontFamily: 'var(--sans)', fontSize: 16, fontWeight: 300,
               color: 'rgba(220,220,220,0.85)', lineHeight: 1.65, marginBottom: 40, maxWidth: 500,
             }}>
               Premium craftsmanship meets timeless elegance. We restore luxury leather goods with precision and care.
             </p>
-            <div style={{ opacity: 0, animation: 'fadeUp 0.8s 0.65s forwards', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div className="home-hero__actions" style={{ opacity: 0, animation: 'fadeUp 0.8s 0.65s forwards', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <Link to="/portfolio" className="btn-primary">
                 View Our Works →
               </Link>
@@ -289,7 +393,7 @@ export default function Home() {
       </section>
 
       {/* ── SERVICES ROW ── */}
-      <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', minHeight: 280 }}>
+      <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
         <div className="svc-row">
           {!servicesReady ? [...Array(3)].map((_, index) => (
             <div key={index} className="svc-card" style={{ pointerEvents: 'none' }}>
@@ -304,16 +408,17 @@ export default function Home() {
           )) : services.map((service) => {
             const visual = getServiceVisual(service.name)
             const categoryQuery = encodeURIComponent(service.name)
+            const backgroundImage = service.imageUrl || visual.img
 
             return (
             <div key={service.id ?? service.name} className="svc-card">
-              <div className="svc-bg" style={{ backgroundImage: `url(${visual.img})` }} />
+              <div className="svc-bg" style={{ backgroundImage: `url(${backgroundImage})` }} />
               <div className="svc-content">
-                <div style={{ marginBottom: 20 }}>{visual.icon}</div>
-                <h3 style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#fff', marginBottom: 10 }}>
+                <div style={{ marginBottom: 14 }}>{visual.icon}</div>
+                <h3 className="svc-title" style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#fff', marginBottom: 6 }}>
                   {service.name}
                 </h3>
-                <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', marginBottom: 24, lineHeight: 1.6 }}>
+                <p className="svc-desc" style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.45 }}>
                   {service.description || 'Premium leather restoration tailored to your category.'}
                 </p>
                 <Link to={`/portfolio?category=${categoryQuery}`} className="learn-link">

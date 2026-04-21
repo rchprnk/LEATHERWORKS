@@ -106,7 +106,7 @@ body::before {
 @media (max-width: 600px) {
   .floating-socials {
     right: 16px !important;
-    bottom: calc(72px + var(--safe-area-bottom, 0px)) !important;
+    bottom: calc(48px + var(--safe-area-bottom, 0px)) !important;
   }
 }
 

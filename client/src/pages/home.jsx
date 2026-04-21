@@ -286,10 +286,26 @@ export default function Home() {
         }
         .why-col {
           padding: 0 32px;
-          border-right: 1px solid var(--border);
         }
-        .why-col:first-child { padding-left: 0; }
-        .why-col:last-child { border-right: none; padding-right: 0; }
+        .why-col:first-child { padding-left: 32px; }
+        .why-col:last-child { padding-right: 0; }
+        .why-col--numbered {
+          display: grid;
+          grid-template-columns: 52px minmax(0, 1fr);
+          column-gap: 14px;
+          align-items: start;
+          min-height: 0;
+        }
+        .why-col__num {
+          font-family: var(--serif);
+          font-size: 72px;
+          color: rgba(225,113,0,0.15);
+          line-height: 0.82;
+          transform: translateY(8px);
+        }
+        .why-col__content {
+          min-width: 0;
+        }
 
         .bullet-list { list-style: none; }
         .bullet-list li {
@@ -306,8 +322,12 @@ export default function Home() {
 
         @media (max-width: 960px) {
           .why-grid { grid-template-columns: 1fr 1fr; }
-          .why-col { border-right: none !important; border-bottom: 1px solid var(--border); padding: 0 0 32px 0 !important; margin-bottom: 32px; }
-          .why-col:nth-child(2n) { padding-left: 20px !important; }
+          .why-col { padding: 0 20px 32px 0 !important; margin-bottom: 32px; }
+          .why-col:nth-child(2n) { padding-left: 20px !important; padding-right: 0 !important; }
+          .why-col__num {
+            font-size: 68px;
+            transform: translateY(6px);
+          }
           .craft-flex, .commercial-flex { flex-direction: column !important; }
           .svc-row { grid-template-columns: 1fr !important; }
           .svc-card { border-right: none; border-bottom: 1px solid var(--border); min-height: 156px; padding: 12px 16px 10px; }
@@ -395,6 +415,16 @@ export default function Home() {
             font-size: 12px !important;
           }
           .why-grid { grid-template-columns: 1fr; }
+          .why-col { padding: 0 0 28px 0 !important; margin-bottom: 28px; }
+          .why-col:nth-child(2n) { padding-left: 0 !important; }
+          .why-col--numbered {
+            grid-template-columns: 42px minmax(0, 1fr);
+            column-gap: 10px;
+          }
+          .why-col__num {
+            font-size: 64px !important;
+            transform: translateY(4px);
+          }
           .svc-row { grid-template-columns: 1fr !important; }
           .svc-card {
             min-height: 142px;
@@ -573,45 +603,36 @@ export default function Home() {
   {WHY_ITEMS.map((item, i) => (
     <Reveal key={item.num} delay={i * 80}>
       
-      <div className="why-col" style={{
-        position: 'relative',
-        paddingLeft: 60
-      }}>
+      <div className="why-col why-col--numbered">
 
         {/* Велика цифра */}
-        <div style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          fontFamily: 'var(--serif)',
-          fontSize: 90,
-          color: 'rgba(225,113,0,0.15)',
-          lineHeight: 1
-        }}>
+        <div className="why-col__num">
           {item.num}
         </div>
 
-        {/* Заголовок */}
-        <h3 style={{ 
-          fontFamily: 'var(--serif)',
-          fontSize: 22,
-          fontWeight: 500, 
-          color: 'var(--gold-light)',
-          marginBottom: 14,
-          lineHeight: 1.3 
-        }}>
-          {item.title}
-        </h3>
+        <div className="why-col__content">
+          {/* Заголовок */}
+          <h3 style={{ 
+            fontFamily: 'var(--serif)',
+            fontSize: 22,
+            fontWeight: 500, 
+            color: 'var(--gold-light)',
+            marginBottom: 14,
+            lineHeight: 1.3 
+          }}>
+            {item.title}
+          </h3>
 
-        {/* Текст */}
-        <p style={{ 
-          fontFamily: 'var(--sans)',
-          fontSize: 14,
-          color: 'var(--text-dim)', 
-          lineHeight: 1.75
-        }}>
-          {item.desc}
-        </p>
+          {/* Текст */}
+          <p style={{ 
+            fontFamily: 'var(--sans)',
+            fontSize: 14,
+            color: 'var(--text-dim)', 
+            lineHeight: 1.75
+          }}>
+            {item.desc}
+          </p>
+        </div>
 
       </div>
 

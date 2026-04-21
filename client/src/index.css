@@ -49,6 +49,18 @@ body {
   padding-top: max(env(safe-area-inset-top, 0px), 0px);
 }
 
+.site-navbar::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--safe-area-top, 0px) + 18px);
+  background: rgba(13, 13, 13, 0.98);
+  pointer-events: none;
+  z-index: 99;
+}
+
 .site-navbar__toggle {
   display: none;
   background: transparent;

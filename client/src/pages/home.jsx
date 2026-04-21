@@ -268,6 +268,14 @@ export default function Home() {
           color: var(--gold-light); text-decoration: none; transition: gap 0.2s;
         }
         .svc-card:hover .learn-link { gap: 10px; }
+        .home-hero__title {
+          overflow-wrap: normal;
+          word-break: normal;
+        }
+        .home-hero__title-line {
+          display: block;
+          white-space: nowrap;
+        }
 
         .why-grid {
           display: grid;
@@ -335,6 +343,15 @@ export default function Home() {
             margin-top: 10px;
           }
         }
+        @media (min-width: 821px) and (max-width: 1280px) {
+          .home-hero__inner {
+            max-width: 860px !important;
+          }
+          .home-hero__title {
+            font-size: clamp(54px, 6vw, 74px) !important;
+            line-height: 1.04 !important;
+          }
+        }
         @media (max-width: 600px) {
           .home-hero {
             height: 64vh !important;
@@ -353,9 +370,11 @@ export default function Home() {
             text-align: center;
           }
           .home-hero__title {
-            font-size: 38px !important;
-            line-height: 1.06 !important;
+            font-size: clamp(35px, 9vw, 42px) !important;
+            line-height: 1.02 !important;
             margin-bottom: 14px !important;
+            margin-left: auto;
+            margin-right: auto;
           }
           .home-hero__text {
             font-size: 13px !important;
@@ -415,7 +434,8 @@ export default function Home() {
               fontFamily: 'var(--serif)', fontSize: 'clamp(44px, 6vw, 82px)',
               fontWeight: 500, lineHeight: 1.12, color: '#fff', marginBottom: 20,
             }}>
-              The Master Art of<br />Leather Restoration
+              <span className="home-hero__title-line">The Master Art of</span>
+              <span className="home-hero__title-line">Leather Restoration</span>
             </h1>
             <p className="home-hero__text" style={{
               opacity: 0, animation: 'fadeUp 0.8s 0.5s forwards',

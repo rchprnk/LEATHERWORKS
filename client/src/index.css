@@ -29,6 +29,18 @@ body {
   padding-top: 0;
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: max(var(--safe-area-top, 0px), 24px);
+  background: #121212;
+  pointer-events: none;
+  z-index: 98;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;

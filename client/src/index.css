@@ -99,6 +99,17 @@ body::before {
   display: none;
 }
 
+.floating-socials {
+  z-index: 220 !important;
+}
+
+@media (max-width: 600px) {
+  .floating-socials {
+    right: 16px !important;
+    bottom: calc(96px + var(--safe-area-bottom, 0px)) !important;
+  }
+}
+
 @media (max-width: 820px) {
   .site-navbar__toggle {
     display: block;

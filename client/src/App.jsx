@@ -44,11 +44,11 @@ function FloatingSocials() {
   const telegramHref = contact.telegram || ''
 
   return (
-    <div style={{
+    <div className="floating-socials" style={{
       position: 'fixed',
       right: 20,
       bottom: 'calc(20px + var(--safe-area-bottom, 0px))',
-      zIndex: 60,
+      zIndex: 220,
       display: 'flex',
       flexDirection: 'column',
       gap: 12,

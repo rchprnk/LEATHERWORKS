@@ -215,7 +215,7 @@ export default function Home() {
         }
         .svc-card {
           position: relative; overflow: hidden; flex: 1;
-          min-height: 0;
+          min-height: 188px;
           border-right: 1px solid var(--border);
           padding: 18px 22px 14px;
           transition: background 0.3s;
@@ -228,6 +228,18 @@ export default function Home() {
         }
         .svc-card:hover .svc-bg { opacity: 0.18; }
         .svc-content { position: relative; z-index: 1; }
+        .svc-card--placeholder .svc-content {
+          opacity: 0.55;
+        }
+        .svc-skeleton {
+          background: linear-gradient(90deg, rgba(42,42,42,0.9) 0%, rgba(62,62,62,0.95) 50%, rgba(42,42,42,0.9) 100%);
+          background-size: 220% 100%;
+          animation: shimmer 1.4s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: 100% 0; }
+          100% { background-position: -100% 0; }
+        }
         .svc-title {
           display: -webkit-box;
           -webkit-line-clamp: 2;
@@ -235,6 +247,8 @@ export default function Home() {
           overflow: hidden;
           text-wrap: balance;
           overflow-wrap: anywhere;
+          font-size: clamp(24px, 1.5vw, 28px) !important;
+          line-height: 1.16 !important;
         }
         .svc-desc {
           display: -webkit-box;
@@ -243,6 +257,8 @@ export default function Home() {
           overflow: hidden;
           overflow-wrap: anywhere;
           word-break: break-word;
+          font-size: 15px !important;
+          line-height: 1.5 !important;
         }
         .learn-link {
           display: inline-flex; align-items: center; gap: 6px;
@@ -286,10 +302,38 @@ export default function Home() {
           .why-col:nth-child(2n) { padding-left: 20px !important; }
           .craft-flex, .commercial-flex { flex-direction: column !important; }
           .svc-row { grid-template-columns: 1fr !important; }
-          .svc-card { border-right: none; border-bottom: 1px solid var(--border); min-height: 0; padding: 12px 16px 10px; }
+          .svc-card { border-right: none; border-bottom: 1px solid var(--border); min-height: 156px; padding: 12px 16px 10px; }
           .svc-card:last-child { border-bottom: none; }
-          .svc-content h3 { font-size: 18px !important; }
-          .svc-content p { margin-bottom: 8px !important; }
+          .svc-content h3 { font-size: 20px !important; }
+          .svc-content p { font-size: 14px !important; margin-bottom: 8px !important; }
+        }
+        @media (min-width: 601px) and (max-width: 1100px) {
+          .home-hero {
+            height: min(860px, 88vh) !important;
+          }
+          .home-hero__content {
+            top: 61%;
+            bottom: auto !important;
+            transform: translateY(-50%);
+            padding: 0 clamp(34px, 5vw, 56px) !important;
+          }
+          .home-hero__inner {
+            max-width: 560px !important;
+          }
+          .home-hero__title {
+            font-size: clamp(66px, 8.5vw, 82px) !important;
+            line-height: 0.98 !important;
+            margin-bottom: 20px !important;
+          }
+          .home-hero__text {
+            font-size: 18px !important;
+            line-height: 1.6 !important;
+            max-width: 440px !important;
+            margin-bottom: 30px !important;
+          }
+          .home-hero__actions {
+            margin-top: 10px;
+          }
         }
         @media (max-width: 600px) {
           .home-hero {
@@ -297,7 +341,7 @@ export default function Home() {
             min-height: 520px;
           }
           .home-hero__content {
-            top: 50%;
+            top: 58%;
             bottom: auto !important;
             transform: translateY(-50%);
             padding: 0 20px !important;
@@ -334,14 +378,14 @@ export default function Home() {
           .why-grid { grid-template-columns: 1fr; }
           .svc-row { grid-template-columns: 1fr !important; }
           .svc-card {
-            min-height: auto;
+            min-height: 142px;
             padding: 10px 14px 8px;
             border-bottom: 1px solid var(--border);
           }
           .svc-bg { display: none; }
           .svc-content svg { width: 20px; height: 20px; margin-bottom: 8px; }
-          .svc-content h3 { font-size: 17px !important; margin-bottom: 4px !important; }
-          .svc-content p { font-size: 12px !important; line-height: 1.45 !important; margin-bottom: 10px !important; }
+          .svc-content h3 { font-size: 19px !important; line-height: 1.16 !important; margin-bottom: 4px !important; }
+          .svc-content p { font-size: 13px !important; line-height: 1.45 !important; margin-bottom: 10px !important; }
           .learn-link {
             width: 100%;
             justify-content: flex-end;
@@ -396,13 +440,13 @@ export default function Home() {
       <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
         <div className="svc-row">
           {!servicesReady ? [...Array(3)].map((_, index) => (
-            <div key={index} className="svc-card" style={{ pointerEvents: 'none' }}>
-              <div className="svc-content" style={{ opacity: 0.45 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 6, background: '#2b2b2b', marginBottom: 20 }} />
-                <div style={{ width: '72%', height: 26, borderRadius: 4, background: '#242424', marginBottom: 12 }} />
-                <div style={{ width: '88%', height: 16, borderRadius: 4, background: '#202020', marginBottom: 10 }} />
-                <div style={{ width: '62%', height: 16, borderRadius: 4, background: '#202020', marginBottom: 24 }} />
-                <div style={{ width: 110, height: 16, borderRadius: 4, background: '#242424' }} />
+            <div key={index} className="svc-card svc-card--placeholder" style={{ pointerEvents: 'none' }}>
+              <div className="svc-content">
+                <div className="svc-skeleton" style={{ width: 32, height: 32, borderRadius: 6, marginBottom: 14 }} />
+                <div className="svc-skeleton" style={{ width: '68%', height: 24, borderRadius: 4, marginBottom: 8 }} />
+                <div className="svc-skeleton" style={{ width: '86%', height: 15, borderRadius: 4, marginBottom: 8 }} />
+                <div className="svc-skeleton" style={{ width: '58%', height: 15, borderRadius: 4, marginBottom: 26 }} />
+                <div className="svc-skeleton" style={{ width: 108, height: 14, borderRadius: 4 }} />
               </div>
             </div>
           )) : services.map((service) => {

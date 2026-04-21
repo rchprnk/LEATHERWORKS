@@ -33,9 +33,10 @@ export function Navbar() {
         background: scrolled ? 'rgba(13,13,13,0.98)' : 'rgba(13,13,13,0.85)',
         borderBottom: '1px solid rgba(42,42,42,0.6)',
         backdropFilter: 'blur(14px)',
-        padding: '0 clamp(24px, 6vw, 100px)', height: 68,
+        padding: 'var(--safe-area-top, 0px) clamp(24px, 6vw, 100px) 0',
+        height: 'calc(68px + var(--safe-area-top, 0px))',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        transition: 'background 0.3s',
+        transition: 'background 0.3s, height 0.3s',
       }}>
         <Link to="/" className="site-navbar__brand" style={{
           fontFamily: 'var(--serif)',

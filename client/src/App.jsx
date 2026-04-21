@@ -44,7 +44,15 @@ function FloatingSocials() {
   const telegramHref = contact.telegram || ''
 
   return (
-    <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{
+      position: 'fixed',
+      right: 20,
+      bottom: 'calc(20px + var(--safe-area-bottom, 0px))',
+      zIndex: 60,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+    }}>
       {whatsappHref ? (
         <a
           href={whatsappHref}

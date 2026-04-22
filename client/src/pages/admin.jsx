@@ -2,23 +2,93 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 
+const UPLOAD_TIMEOUT_MS = 60_000
+const SAVE_TIMEOUT_MS = 30_000
+
+function useObjectUrl(file, { delayMs = 60 } = {}) {
+  const [url, setUrl] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const clearT = setTimeout(() => {
+      if (!cancelled) setUrl(null)
+    }, 0)
+
+    if (!file) {
+      return () => {
+        cancelled = true
+        clearTimeout(clearT)
+      }
+    }
+
+    const objectUrl = URL.createObjectURL(file)
+
+    const load = async () => {
+      try {
+        const img = new Image()
+        img.src = objectUrl
+        if (typeof img.decode === 'function') {
+          await img.decode()
+        } else {
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+          })
+        }
+      } catch {
+        // ignore (we still want to show the preview)
+      }
+      if (!cancelled) setUrl(objectUrl)
+    }
+
+    const t = delayMs ? setTimeout(load, delayMs) : (load(), null)
+    return () => {
+      cancelled = true
+      if (t) clearTimeout(t)
+      clearTimeout(clearT)
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, [file, delayMs])
+
+  return url
+}
+
+function openFilePicker(inputRef) {
+  const el = inputRef?.current
+  if (!el) return
+  try {
+    el.value = ''
+  } catch {
+    // ignore
+  }
+  el.click?.()
+}
+
+function finalizeFileSelection() {
+  try {
+    document?.activeElement?.blur?.()
+  } catch {
+    // ignore
+  }
+}
+
 async function fetchPortfolio() {
   const res = await api.get('/api/portfolio')
   return res.data?.data ?? res.data
 }
 
 async function createPortfolio(formData) {
-  const res = await api.post('/api/portfolio', formData)
+  const res = await api.post('/api/portfolio', formData, { timeout: UPLOAD_TIMEOUT_MS })
   return res.data
 }
 
 async function deletePortfolio(id) {
-  const res = await api.delete(`/api/portfolio/${id}`)
+  const res = await api.delete(`/api/portfolio/${id}`, { timeout: SAVE_TIMEOUT_MS })
   return res.data
 }
 
 async function updatePortfolio({ id, data }) {
-  const res = await api.put(`/api/portfolio/${id}`, data)
+  const res = await api.put(`/api/portfolio/${id}`, data, { timeout: UPLOAD_TIMEOUT_MS })
   return res.data
 }
 
@@ -28,27 +98,27 @@ async function fetchCategories() {
 }
 
 async function createCategory(payload) {
-  const res = await api.post('/api/categories', payload)
+  const res = await api.post('/api/categories', payload, { timeout: SAVE_TIMEOUT_MS })
   return res.data
 }
 
 async function deleteCategory(id) {
-  const res = await api.delete(`/api/categories/${id}`)
+  const res = await api.delete(`/api/categories/${id}`, { timeout: SAVE_TIMEOUT_MS })
   return res.data
 }
 
 async function updateCategory({ id, data }) {
-  const res = await api.put(`/api/categories/${id}`, data)
+  const res = await api.put(`/api/categories/${id}`, data, { timeout: SAVE_TIMEOUT_MS })
   return res.data
 }
 
 async function fetchContact() {
-  const res = await api.get('/api/contact', { params: { v: 1 } })
+  const res = await api.get('/api/contact', { params: { v: 1 }, timeout: SAVE_TIMEOUT_MS })
   return res.data
 }
 
 async function saveContact(payload) {
-  const res = await api.put('/api/contact', payload)
+  const res = await api.put('/api/contact', payload, { timeout: SAVE_TIMEOUT_MS })
   return res.data
 }
 
@@ -291,6 +361,7 @@ export default function Admin() {
         const list = Array.isArray(old) ? old : []
         return list.map((w) => (w?.id === updated?.id ? { ...w, ...updated } : w))
       })
+      await qc.invalidateQueries({ queryKey: ['portfolio'] })
       setToast({ type: 'success', text: 'Work updated.' })
       setEditingWorkId(null)
       resetEditWorkImages()
@@ -308,41 +379,24 @@ export default function Admin() {
   })
 
   const categoryImageInputRef = useRef(null)
-  const categoryImageObjectUrlRef = useRef(null)
   const [categoryImageFile, setCategoryImageFileState] = useState(null)
-  const [categoryImagePreviewUrl, setCategoryImagePreviewUrl] = useState(null)
+  const categoryImagePreviewUrl = useObjectUrl(categoryImageFile)
 
   const editCategoryImageInputRef = useRef(null)
-  const editCategoryImageObjectUrlRef = useRef(null)
   const [editCategoryImageFile, setEditCategoryImageFileState] = useState(null)
-  const [editCategoryImagePreviewUrl, setEditCategoryImagePreviewUrl] = useState(null)
+  const editCategoryImagePreviewUrl = useObjectUrl(editCategoryImageFile)
 
   const beforeInputRef = useRef(null)
   const afterInputRef = useRef(null)
-  const beforeObjectUrlRef = useRef(null)
-  const afterObjectUrlRef = useRef(null)
-  const [beforePreviewUrl, setBeforePreviewUrl] = useState(null)
-  const [afterPreviewUrl, setAfterPreviewUrl] = useState(null)
+  const beforePreviewUrl = useObjectUrl(newItem.before)
+  const afterPreviewUrl = useObjectUrl(newItem.after)
 
   const editWorkBeforeInputRef = useRef(null)
   const editWorkAfterInputRef = useRef(null)
-  const editWorkBeforeObjectUrlRef = useRef(null)
-  const editWorkAfterObjectUrlRef = useRef(null)
   const [editWorkBeforeFile, setEditWorkBeforeFileState] = useState(null)
   const [editWorkAfterFile, setEditWorkAfterFileState] = useState(null)
-  const [editWorkBeforePreviewUrl, setEditWorkBeforePreviewUrl] = useState(null)
-  const [editWorkAfterPreviewUrl, setEditWorkAfterPreviewUrl] = useState(null)
-
-  useEffect(() => {
-    return () => {
-      if (beforeObjectUrlRef.current) URL.revokeObjectURL(beforeObjectUrlRef.current)
-      if (afterObjectUrlRef.current) URL.revokeObjectURL(afterObjectUrlRef.current)
-      if (categoryImageObjectUrlRef.current) URL.revokeObjectURL(categoryImageObjectUrlRef.current)
-      if (editCategoryImageObjectUrlRef.current) URL.revokeObjectURL(editCategoryImageObjectUrlRef.current)
-      if (editWorkBeforeObjectUrlRef.current) URL.revokeObjectURL(editWorkBeforeObjectUrlRef.current)
-      if (editWorkAfterObjectUrlRef.current) URL.revokeObjectURL(editWorkAfterObjectUrlRef.current)
-    }
-  }, [])
+  const editWorkBeforePreviewUrl = useObjectUrl(editWorkBeforeFile)
+  const editWorkAfterPreviewUrl = useObjectUrl(editWorkAfterFile)
 
   function validateCategoryImage(file) {
     if (!file) return { ok: true }
@@ -361,15 +415,6 @@ export default function Admin() {
       return
     }
     setCategoryImageFileState(file || null)
-    if (categoryImageObjectUrlRef.current) URL.revokeObjectURL(categoryImageObjectUrlRef.current)
-    if (!file) {
-      categoryImageObjectUrlRef.current = null
-      setCategoryImagePreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    categoryImageObjectUrlRef.current = url
-    setCategoryImagePreviewUrl(url)
   }
 
   function clearCategoryImage() {
@@ -384,22 +429,10 @@ export default function Admin() {
       return
     }
     setEditCategoryImageFileState(file || null)
-    if (editCategoryImageObjectUrlRef.current) URL.revokeObjectURL(editCategoryImageObjectUrlRef.current)
-    if (!file) {
-      editCategoryImageObjectUrlRef.current = null
-      setEditCategoryImagePreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    editCategoryImageObjectUrlRef.current = url
-    setEditCategoryImagePreviewUrl(url)
   }
 
   function resetEditCategoryImage() {
-    if (editCategoryImageObjectUrlRef.current) URL.revokeObjectURL(editCategoryImageObjectUrlRef.current)
-    editCategoryImageObjectUrlRef.current = null
     setEditCategoryImageFileState(null)
-    setEditCategoryImagePreviewUrl(null)
     if (editCategoryImageInputRef.current) editCategoryImageInputRef.current.value = ''
   }
 
@@ -417,15 +450,6 @@ export default function Admin() {
       return
     }
     setEditWorkBeforeFileState(file || null)
-    if (editWorkBeforeObjectUrlRef.current) URL.revokeObjectURL(editWorkBeforeObjectUrlRef.current)
-    if (!file) {
-      editWorkBeforeObjectUrlRef.current = null
-      setEditWorkBeforePreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    editWorkBeforeObjectUrlRef.current = url
-    setEditWorkBeforePreviewUrl(url)
   }
 
   function setEditWorkAfterFile(file) {
@@ -435,74 +459,32 @@ export default function Admin() {
       return
     }
     setEditWorkAfterFileState(file || null)
-    if (editWorkAfterObjectUrlRef.current) URL.revokeObjectURL(editWorkAfterObjectUrlRef.current)
-    if (!file) {
-      editWorkAfterObjectUrlRef.current = null
-      setEditWorkAfterPreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    editWorkAfterObjectUrlRef.current = url
-    setEditWorkAfterPreviewUrl(url)
   }
 
   function resetEditWorkImages() {
-    if (editWorkBeforeObjectUrlRef.current) URL.revokeObjectURL(editWorkBeforeObjectUrlRef.current)
-    if (editWorkAfterObjectUrlRef.current) URL.revokeObjectURL(editWorkAfterObjectUrlRef.current)
-    editWorkBeforeObjectUrlRef.current = null
-    editWorkAfterObjectUrlRef.current = null
     setEditWorkBeforeFileState(null)
     setEditWorkAfterFileState(null)
-    setEditWorkBeforePreviewUrl(null)
-    setEditWorkAfterPreviewUrl(null)
     if (editWorkBeforeInputRef.current) editWorkBeforeInputRef.current.value = ''
     if (editWorkAfterInputRef.current) editWorkAfterInputRef.current.value = ''
   }
 
   function setBeforeFile(file) {
     setNewItem((s) => ({ ...s, before: file }))
-    if (beforeObjectUrlRef.current) URL.revokeObjectURL(beforeObjectUrlRef.current)
-    if (!file) {
-      beforeObjectUrlRef.current = null
-      setBeforePreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    beforeObjectUrlRef.current = url
-    setBeforePreviewUrl(url)
   }
 
   function setAfterFile(file) {
     setNewItem((s) => ({ ...s, after: file }))
-    if (afterObjectUrlRef.current) URL.revokeObjectURL(afterObjectUrlRef.current)
-    if (!file) {
-      afterObjectUrlRef.current = null
-      setAfterPreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    afterObjectUrlRef.current = url
-    setAfterPreviewUrl(url)
   }
 
   function resetNewWorkForm(formEl) {
     setNewItem({ title: '', description: '', category: '', before: null, after: null })
-    if (beforeObjectUrlRef.current) URL.revokeObjectURL(beforeObjectUrlRef.current)
-    if (afterObjectUrlRef.current) URL.revokeObjectURL(afterObjectUrlRef.current)
-    beforeObjectUrlRef.current = null
-    afterObjectUrlRef.current = null
-    setBeforePreviewUrl(null)
-    setAfterPreviewUrl(null)
     if (beforeInputRef.current) beforeInputRef.current.value = ''
     if (afterInputRef.current) afterInputRef.current.value = ''
     formEl?.reset?.()
   }
 
   function resetNewCategoryForm(formEl) {
-    if (categoryImageObjectUrlRef.current) URL.revokeObjectURL(categoryImageObjectUrlRef.current)
-    categoryImageObjectUrlRef.current = null
     setCategoryImageFileState(null)
-    setCategoryImagePreviewUrl(null)
     if (categoryImageInputRef.current) categoryImageInputRef.current.value = ''
     formEl?.reset?.()
   }
@@ -658,19 +640,23 @@ export default function Admin() {
         .admin-media-remove:hover { background: rgba(0,0,0,0.72); }
         .admin-media-pill { position: absolute; top: 12px; left: 12px; background: rgba(130,24,26,0.80); border: 1.12px solid #C10007; border-radius: 6px; padding: 7px 13px; font-size: 12px; font-weight: 600; color: #fff; letter-spacing: 0.6px; }
         .admin-media-pill.after { left: auto; right: 12px; background: rgba(13,84,43,0.80); border-color: #008236; }
+        .admin-media-pill { z-index: 3; pointer-events: none; }
         .admin-file-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-        .admin-upload-box { position: relative; border-radius: 14px; border: 1.2px dashed rgba(255,255,255,0.18); background: rgba(10,10,10,0.40); min-height: 220px; display: grid; place-items: center; overflow: hidden; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
-        .admin-upload-box:hover { border-color: rgba(200,144,42,0.65); background: rgba(10,10,10,0.55); transform: translateY(-1px); }
-        .admin-upload-inner { display: grid; gap: 10px; text-align: center; padding: 18px; color: rgba(255,255,255,0.86); }
+        .admin-upload-box { position: relative; border-radius: 14px; border: 1.2px dashed rgba(255,255,255,0.18); background: rgba(10,10,10,0.40); min-height: 220px; display: grid; place-items: center; overflow: hidden; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        @media (hover: hover) and (pointer: fine) {
+          .admin-upload-box:hover { border-color: rgba(200,144,42,0.65); background: rgba(10,10,10,0.55); transform: translateY(-1px); }
+        }
+        .admin-upload-inner { position: relative; z-index: 2; display: grid; gap: 10px; text-align: center; padding: 18px; color: rgba(255,255,255,0.86); }
         .admin-upload-icon { width: 44px; height: 44px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); display: grid; place-items: center; margin: 0 auto; }
         .admin-upload-title { font-size: 14px; font-weight: 650; }
         .admin-upload-sub { font-size: 12px; color: rgba(255,255,255,0.65); line-height: 1.5; }
-        .admin-upload-preview { position: absolute; inset: 0; }
+        .admin-upload-preview { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
         .admin-upload-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .admin-upload-actions { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: flex-end; padding: 10px; gap: 8px; }
+        .admin-upload-actions { position: absolute; inset: 0; z-index: 3; display: flex; align-items: flex-start; justify-content: flex-end; padding: 10px; gap: 8px; pointer-events: none; }
         .admin-upload-action { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; line-height: 1; }
         .admin-upload-action:hover { background: rgba(0,0,0,0.72); }
-        .admin-upload-chip { position: absolute; left: 12px; bottom: 12px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(0,0,0,0.40); color: rgba(255,255,255,0.92); font-size: 12px; letter-spacing: 0.4px; }
+        .admin-upload-action { pointer-events: auto; }
+        .admin-upload-chip { position: absolute; left: 12px; bottom: 12px; z-index: 2; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(0,0,0,0.40); color: rgba(255,255,255,0.92); font-size: 12px; letter-spacing: 0.4px; pointer-events: none; }
         .admin-cat-row { border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; background: rgba(10,10,10,0.40); display: flex; justify-content: space-between; gap: 12px; }
         .admin-cat-left { flex: 1; min-width: 0; display: flex; gap: 12px; align-items: flex-start; }
         .admin-cat-text { flex: 1; min-width: 0; display: grid; gap: 6px; }
@@ -680,7 +666,7 @@ export default function Admin() {
         .admin-cat-actions { flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; }
         .admin-work-actions { flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; }
         .admin-work-desc { color: #A1A1A1; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-        .admin-img-change { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; }
+        .admin-img-change { position: absolute; top: 10px; right: 10px; z-index: 4; width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; }
         .admin-img-change:hover { background: rgba(0,0,0,0.72); }
         @media (max-width: 900px) {
           .admin-shell { grid-template-columns: 1fr; }
@@ -773,6 +759,7 @@ export default function Admin() {
                         <div style={{ display: 'flex', height: 363, position: 'relative' }}>
                           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                             <img
+                              key={editingWorkId === item.id && editWorkBeforePreviewUrl ? `preview:${editWorkBeforePreviewUrl}` : `remote:${item.before_url}`}
                               src={editingWorkId === item.id && editWorkBeforePreviewUrl ? editWorkBeforePreviewUrl : item.before_url}
                               alt="Before"
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
@@ -787,12 +774,18 @@ export default function Admin() {
                                   className="admin-file-input"
                                   type="file"
                                   accept="image/*"
-                                  onChange={(e) => setEditWorkBeforeFile(e.target.files?.[0] || null)}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0] || null
+                                    setTimeout(() => {
+                                      setEditWorkBeforeFile(f)
+                                      finalizeFileSelection()
+                                    }, 0)
+                                  }}
                                 />
                                 <button
                                   type="button"
                                   className="admin-img-change"
-                                  onClick={() => editWorkBeforeInputRef.current?.click?.()}
+                                  onClick={() => openFilePicker(editWorkBeforeInputRef)}
                                   aria-label="Change before image"
                                 >
                                   <Icon name="camera" />
@@ -802,6 +795,7 @@ export default function Admin() {
                           </div>
                           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                             <img
+                              key={editingWorkId === item.id && editWorkAfterPreviewUrl ? `preview:${editWorkAfterPreviewUrl}` : `remote:${item.after_url}`}
                               src={editingWorkId === item.id && editWorkAfterPreviewUrl ? editWorkAfterPreviewUrl : item.after_url}
                               alt="After"
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
@@ -815,12 +809,18 @@ export default function Admin() {
                                   className="admin-file-input"
                                   type="file"
                                   accept="image/*"
-                                  onChange={(e) => setEditWorkAfterFile(e.target.files?.[0] || null)}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0] || null
+                                    setTimeout(() => {
+                                      setEditWorkAfterFile(f)
+                                      finalizeFileSelection()
+                                    }, 0)
+                                  }}
                                 />
                                 <button
                                   type="button"
                                   className="admin-img-change"
-                                  onClick={() => editWorkAfterInputRef.current?.click?.()}
+                                  onClick={() => openFilePicker(editWorkAfterInputRef)}
                                   aria-label="Change after image"
                                 >
                                   <Icon name="camera" />
@@ -1024,9 +1024,9 @@ export default function Admin() {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') beforeInputRef.current?.click?.()
+                          if (e.key === 'Enter' || e.key === ' ') openFilePicker(beforeInputRef)
                         }}
-                        onClick={() => beforeInputRef.current?.click?.()}
+                        onClick={() => openFilePicker(beforeInputRef)}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1041,7 +1041,13 @@ export default function Admin() {
                           className="admin-file-input"
                           type="file"
                           accept="image/*"
-                          onChange={(e) => setBeforeFile(e.target.files?.[0] || null)}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null
+                            setTimeout(() => {
+                              setBeforeFile(f)
+                              finalizeFileSelection()
+                            }, 0)
+                          }}
                         />
 
                         {!beforePreviewUrl && (
@@ -1057,7 +1063,7 @@ export default function Admin() {
                         {beforePreviewUrl && (
                           <>
                             <div className="admin-upload-preview">
-                              <img src={beforePreviewUrl} alt="Before preview" />
+                              <img key={`preview:${beforePreviewUrl}`} src={beforePreviewUrl} alt="Before preview" />
                               <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
                               <div className="admin-media-pill">BEFORE</div>
                               <div className="admin-upload-chip">Click to change</div>
@@ -1087,9 +1093,9 @@ export default function Admin() {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') afterInputRef.current?.click?.()
+                          if (e.key === 'Enter' || e.key === ' ') openFilePicker(afterInputRef)
                         }}
-                        onClick={() => afterInputRef.current?.click?.()}
+                        onClick={() => openFilePicker(afterInputRef)}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1104,7 +1110,13 @@ export default function Admin() {
                           className="admin-file-input"
                           type="file"
                           accept="image/*"
-                          onChange={(e) => setAfterFile(e.target.files?.[0] || null)}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null
+                            setTimeout(() => {
+                              setAfterFile(f)
+                              finalizeFileSelection()
+                            }, 0)
+                          }}
                         />
 
                         {!afterPreviewUrl && (
@@ -1120,7 +1132,7 @@ export default function Admin() {
                         {afterPreviewUrl && (
                           <>
                             <div className="admin-upload-preview">
-                              <img src={afterPreviewUrl} alt="After preview" />
+                              <img key={`preview:${afterPreviewUrl}`} src={afterPreviewUrl} alt="After preview" />
                               <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
                               <div className="admin-media-pill after">AFTER</div>
                               <div className="admin-upload-chip">Click to change</div>
@@ -1206,6 +1218,7 @@ export default function Admin() {
                         >
                           {(editingCategoryId === cat.id && editCategoryImagePreviewUrl ? editCategoryImagePreviewUrl : cat.img_categories) ? (
                             <img
+                              key={editingCategoryId === cat.id && editCategoryImagePreviewUrl ? `preview:${editCategoryImagePreviewUrl}` : `remote:${cat.img_categories}`}
                               src={editingCategoryId === cat.id && editCategoryImagePreviewUrl ? editCategoryImagePreviewUrl : cat.img_categories}
                               alt={cat.name}
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
@@ -1223,13 +1236,19 @@ export default function Admin() {
                                 className="admin-file-input"
                                 type="file"
                                 accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                                onChange={(e) => setEditCategoryImageFile(e.target.files?.[0] || null)}
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0] || null
+                                  setTimeout(() => {
+                                    setEditCategoryImageFile(f)
+                                    finalizeFileSelection()
+                                  }, 0)
+                                }}
                               />
                               <button
                                 type="button"
                                 className="admin-img-change"
                                 style={{ width: 30, height: 30, top: 8, right: 8 }}
-                                onClick={() => editCategoryImageInputRef.current?.click?.()}
+                                onClick={() => openFilePicker(editCategoryImageInputRef)}
                                 aria-label="Change category image"
                               >
                                 <Icon name="camera" />
@@ -1375,9 +1394,9 @@ export default function Admin() {
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') categoryImageInputRef.current?.click?.()
+                        if (e.key === 'Enter' || e.key === ' ') openFilePicker(categoryImageInputRef)
                       }}
-                      onClick={() => categoryImageInputRef.current?.click?.()}
+                      onClick={() => openFilePicker(categoryImageInputRef)}
                       onDragOver={(e) => {
                         e.preventDefault()
                       }}
@@ -1393,7 +1412,13 @@ export default function Admin() {
                         className="admin-file-input"
                         type="file"
                         accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                        onChange={(e) => setCategoryImageFile(e.target.files?.[0] || null)}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] || null
+                          setTimeout(() => {
+                            setCategoryImageFile(f)
+                            finalizeFileSelection()
+                          }, 0)
+                        }}
                       />
 
                       {!categoryImagePreviewUrl && (
@@ -1409,7 +1434,7 @@ export default function Admin() {
                       {categoryImagePreviewUrl && (
                         <>
                           <div className="admin-upload-preview">
-                            <img src={categoryImagePreviewUrl} alt="Category preview" />
+                            <img key={`preview:${categoryImagePreviewUrl}`} src={categoryImagePreviewUrl} alt="Category preview" />
                             <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
                             <div className="admin-upload-chip">Click to change</div>
                           </div>

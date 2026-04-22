@@ -10,6 +10,16 @@ api.interceptors.response.use(
     const status = error?.response?.status
     const serverMsg = error?.response?.data?.error || error?.response?.data?.message
 
+    if (error?.code === 'ECONNABORTED' || /timeout/i.test(String(error?.message || ''))) {
+      error.message = 'Request timed out. Please try again.'
+      return Promise.reject(error)
+    }
+
+    if (error?.code === 'ERR_CANCELED') {
+      error.message = 'Request cancelled.'
+      return Promise.reject(error)
+    }
+
     if (!error?.response) {
       error.message =
         'Server not reachable. Check that the backend is running and `VITE_API_URL` points to it.'

@@ -101,32 +101,6 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
   return { inputRef, previewUrl, open, onChange, clear, selectFile, setPreviewFromFile }
 }
 
-function useMobileTap(handler, { suppressClickMs = 700 } = {}) {
-  const lastTouchTsRef = useRef(0)
-  const handlerRef = useRef(handler)
-
-  useEffect(() => {
-    handlerRef.current = handler
-  }, [handler])
-
-  return useMemo(() => {
-    return {
-      onTouchEnd: (e) => {
-        lastTouchTsRef.current = Date.now()
-        handlerRef.current?.(e)
-      },
-      onClick: (e) => {
-        if (Date.now() - lastTouchTsRef.current < suppressClickMs) {
-          e?.preventDefault?.()
-          e?.stopPropagation?.()
-          return
-        }
-        handlerRef.current?.(e)
-      },
-    }
-  }, [suppressClickMs])
-}
-
 async function fetchPortfolio() {
   const res = await api.get('/api/portfolio')
   return res.data?.data ?? res.data
@@ -512,13 +486,6 @@ export default function Admin() {
     onInvalid: (message) => setToast({ type: 'error', text: message }),
   })
 
-  const beforeOpenTap = useMobileTap(openBeforePicker)
-  const afterOpenTap = useMobileTap(openAfterPicker)
-  const categoryOpenTap = useMobileTap(openCategoryPicker)
-  const editWorkBeforeOpenTap = useMobileTap(openEditWorkBeforePicker)
-  const editWorkAfterOpenTap = useMobileTap(openEditWorkAfterPicker)
-  const editCategoryOpenTap = useMobileTap(openEditCategoryPicker)
-
   function validateCategoryImage(file) {
     if (!file) return { ok: true }
     const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -845,8 +812,7 @@ export default function Admin() {
                                 <button
                                   type="button"
                                   className="admin-img-change"
-                                  onClick={editWorkBeforeOpenTap.onClick}
-                                  onTouchEnd={editWorkBeforeOpenTap.onTouchEnd}
+                                  onClick={openEditWorkBeforePicker}
                                   aria-label="Change before image"
                                 >
                                   <Icon name="camera" />
@@ -875,8 +841,7 @@ export default function Admin() {
                                 <button
                                   type="button"
                                   className="admin-img-change"
-                                  onClick={editWorkAfterOpenTap.onClick}
-                                  onTouchEnd={editWorkAfterOpenTap.onTouchEnd}
+                                  onClick={openEditWorkAfterPicker}
                                   aria-label="Change after image"
                                 >
                                   <Icon name="camera" />
@@ -1082,8 +1047,7 @@ export default function Admin() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') openBeforePicker(e)
                         }}
-                        onClick={beforeOpenTap.onClick}
-                        onTouchEnd={beforeOpenTap.onTouchEnd}
+                        onClick={openBeforePicker}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1142,8 +1106,7 @@ export default function Admin() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') openAfterPicker(e)
                         }}
-                        onClick={afterOpenTap.onClick}
-                        onTouchEnd={afterOpenTap.onTouchEnd}
+                        onClick={openAfterPicker}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1280,8 +1243,7 @@ export default function Admin() {
                                 type="button"
                                 className="admin-img-change"
                                 style={{ width: 30, height: 30, top: 8, right: 8 }}
-                                onClick={editCategoryOpenTap.onClick}
-                                onTouchEnd={editCategoryOpenTap.onTouchEnd}
+                                onClick={openEditCategoryPicker}
                                 aria-label="Change category image"
                               >
                                 <Icon name="camera" />
@@ -1429,8 +1391,7 @@ export default function Admin() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') openCategoryPicker(e)
                       }}
-                      onClick={categoryOpenTap.onClick}
-                      onTouchEnd={categoryOpenTap.onTouchEnd}
+                      onClick={openCategoryPicker}
                       onDragOver={(e) => {
                         e.preventDefault()
                       }}

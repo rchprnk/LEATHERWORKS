@@ -5,25 +5,34 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getCategories, getPortfolio } from '../services/api'
 
-// Функція для анімації появи (залишаємо її тут)
 function useReveal() {
   const ref = useRef(null)
   const [visible, setVisible] = useState(false)
+
   useEffect(() => {
     const el = ref.current
     if (!el) return
+
     const io = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); io.disconnect() } },
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true)
+          io.disconnect()
+        }
+      },
       { threshold: 0.12 }
     )
+
     io.observe(el)
     return () => io.disconnect()
   }, [])
+
   return [ref, visible]
 }
 
 function Reveal({ children, delay = 0, style: outerStyle = {}, className = '' }) {
   const [ref, visible] = useReveal()
+
   return (
     <div
       ref={ref}
@@ -40,12 +49,27 @@ function Reveal({ children, delay = 0, style: outerStyle = {}, className = '' })
   )
 }
 
-// Константи для контенту (залишаємо)
 const WHY_ITEMS = [
-  { num: '1', title: 'Preserving Value', desc: 'Professional leather repair is a craft that restores value, durability, and character to worn items.' },
-  { num: '2', title: 'Expert Solutions', desc: 'We provide restoration for furniture, automotive interiors, handbags, and apparel, extending the life of leather while preserving its original feel.' },
-  { num: '3', title: 'Precision Craft', desc: 'Using industry-proven techniques and precise color matching to bring damaged leather back to life.' },
-  { num: '4', title: 'Sustainable Quality', desc: 'Instead of replacing expensive items, we offer a practical, cost-effective, and eco-friendly alternative.' },
+  {
+    num: '1',
+    title: 'Preserving Value',
+    desc: 'Professional leather repair is a craft that restores value, durability, and character to worn items.',
+  },
+  {
+    num: '2',
+    title: 'Expert Solutions',
+    desc: 'We provide restoration for furniture, automotive interiors, handbags, and apparel, extending the life of leather while preserving its original feel.',
+  },
+  {
+    num: '3',
+    title: 'Precision Craft',
+    desc: 'Using industry-proven techniques and precise color matching to bring damaged leather back to life.',
+  },
+  {
+    num: '4',
+    title: 'Sustainable Quality',
+    desc: 'Instead of replacing expensive items, we offer a practical, cost-effective, and eco-friendly alternative.',
+  },
 ]
 
 const DEFAULT_SERVICES = [
@@ -59,10 +83,10 @@ const SERVICE_VISUALS = {
     img: 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <rect x="2" y="7" width="20" height="14" rx="2"/>
-        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-        <line x1="12" y1="12" x2="12" y2="16"/>
-        <line x1="10" y1="14" x2="14" y2="14"/>
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+        <line x1="12" y1="12" x2="12" y2="16" />
+        <line x1="10" y1="14" x2="14" y2="14" />
       </svg>
     ),
   },
@@ -70,11 +94,11 @@ const SERVICE_VISUALS = {
     img: 'https://images.unsplash.com/photo-1679945747285-26f0e6569958?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2"/>
-        <path d="M19 17h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/>
-        <rect x="5" y="5" width="14" height="14" rx="2"/>
-        <circle cx="7.5" cy="17.5" r="1.5"/>
-        <circle cx="16.5" cy="17.5" r="1.5"/>
+        <path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2" />
+        <path d="M19 17h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" />
+        <rect x="5" y="5" width="14" height="14" rx="2" />
+        <circle cx="7.5" cy="17.5" r="1.5" />
+        <circle cx="16.5" cy="17.5" r="1.5" />
       </svg>
     ),
   },
@@ -82,9 +106,9 @@ const SERVICE_VISUALS = {
     img: 'https://images.unsplash.com/photo-1708869979139-6d4137a12684?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <path d="M2 9V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3"/>
-        <path d="M2 11a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3H2v-3z"/>
-        <path d="M4 14v4M20 14v4M4 18h16"/>
+        <path d="M2 9V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3" />
+        <path d="M2 11a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3H2v-3z" />
+        <path d="M4 14v4M20 14v4M4 18h16" />
       </svg>
     ),
   },
@@ -92,8 +116,8 @@ const SERVICE_VISUALS = {
     img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <path d="M7 7h10l2 4-2 6H7l-2-6 2-4z"/>
-        <path d="M9 7V5a3 3 0 0 1 6 0v2"/>
+        <path d="M7 7h10l2 4-2 6H7l-2-6 2-4z" />
+        <path d="M9 7V5a3 3 0 0 1 6 0v2" />
       </svg>
     ),
   },
@@ -444,7 +468,6 @@ export default function Home() {
         }
       `}</style>
 
-      {/* ── HERO ── */}
       <section className="home-hero" style={{ position: 'relative', height: 'min(920px, 93vh)', overflow: 'hidden' }}>
         <img
           src={heroImg}
@@ -454,27 +477,53 @@ export default function Home() {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(13,13,13,0.88) 0%, rgba(13,13,13,0.45) 60%, rgba(13,13,13,0.1) 100%)' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(13,13,13,0.5) 0%, transparent 40%, rgba(13,13,13,0.8) 100%)' }} />
 
-        <div className="home-hero__content" style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          padding: '0 clamp(24px, 6vw, 100px) clamp(120px, 12vw, 170px)',
-        }}>
+        <div
+          className="home-hero__content"
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: '0 clamp(24px, 6vw, 100px) clamp(120px, 12vw, 170px)',
+          }}
+        >
           <div className="home-hero__inner" style={{ maxWidth: 680 }}>
-            <h1 className="home-hero__title" style={{
-              opacity: 0, animation: 'fadeUp 0.8s 0.3s forwards',
-              fontFamily: 'var(--serif)', fontSize: 'clamp(44px, 6vw, 82px)',
-              fontWeight: 500, lineHeight: 1.12, color: '#fff', marginBottom: 20,
-            }}>
+            <h1
+              className="home-hero__title"
+              style={{
+                opacity: 0,
+                animation: 'fadeUp 0.8s 0.3s forwards',
+                fontFamily: 'var(--serif)',
+                fontSize: 'clamp(44px, 6vw, 82px)',
+                fontWeight: 500,
+                lineHeight: 1.12,
+                color: '#fff',
+                marginBottom: 20,
+              }}
+            >
               <span className="home-hero__title-line">The Master Art of</span>
               <span className="home-hero__title-line">Leather Restoration</span>
             </h1>
-            <p className="home-hero__text" style={{
-              opacity: 0, animation: 'fadeUp 0.8s 0.5s forwards',
-              fontFamily: 'var(--sans)', fontSize: 16, fontWeight: 300,
-              color: 'rgba(220,220,220,0.85)', lineHeight: 1.65, marginBottom: 40, maxWidth: 500,
-            }}>
+            <p
+              className="home-hero__text"
+              style={{
+                opacity: 0,
+                animation: 'fadeUp 0.8s 0.5s forwards',
+                fontFamily: 'var(--sans)',
+                fontSize: 16,
+                fontWeight: 300,
+                color: 'rgba(220,220,220,0.85)',
+                lineHeight: 1.65,
+                marginBottom: 40,
+                maxWidth: 500,
+              }}
+            >
               Premium craftsmanship meets timeless elegance. We restore luxury leather goods with precision and care.
             </p>
-            <div className="home-hero__actions" style={{ opacity: 0, animation: 'fadeUp 0.8s 0.65s forwards', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div
+              className="home-hero__actions"
+              style={{ opacity: 0, animation: 'fadeUp 0.8s 0.65s forwards', display: 'flex', gap: 16, flexWrap: 'wrap' }}
+            >
               <Link to="/portfolio" className="btn-primary">
                 View Our Works →
               </Link>
@@ -486,45 +535,46 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── SERVICES ROW ── */}
       <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
         <div className="svc-row">
-          {!servicesReady ? [...Array(3)].map((_, index) => (
-            <div key={index} className="svc-card svc-card--placeholder" style={{ pointerEvents: 'none' }}>
-              <div className="svc-content">
-                <div className="svc-skeleton" style={{ width: 32, height: 32, borderRadius: 6, marginBottom: 14 }} />
-                <div className="svc-skeleton" style={{ width: '68%', height: 24, borderRadius: 4, marginBottom: 8 }} />
-                <div className="svc-skeleton" style={{ width: '86%', height: 15, borderRadius: 4, marginBottom: 8 }} />
-                <div className="svc-skeleton" style={{ width: '58%', height: 15, borderRadius: 4, marginBottom: 26 }} />
-                <div className="svc-skeleton" style={{ width: 108, height: 14, borderRadius: 4 }} />
-              </div>
-            </div>
-          )) : services.map((service) => {
-            const visual = getServiceVisual(service.name)
-            const categoryQuery = encodeURIComponent(service.name)
-            const backgroundImage = service.imageUrl || visual.img
+          {!servicesReady
+            ? [...Array(3)].map((_, index) => (
+                <div key={index} className="svc-card svc-card--placeholder" style={{ pointerEvents: 'none' }}>
+                  <div className="svc-content">
+                    <div className="svc-skeleton" style={{ width: 32, height: 32, borderRadius: 6, marginBottom: 14 }} />
+                    <div className="svc-skeleton" style={{ width: '68%', height: 24, borderRadius: 4, marginBottom: 8 }} />
+                    <div className="svc-skeleton" style={{ width: '86%', height: 15, borderRadius: 4, marginBottom: 8 }} />
+                    <div className="svc-skeleton" style={{ width: '58%', height: 15, borderRadius: 4, marginBottom: 26 }} />
+                    <div className="svc-skeleton" style={{ width: 108, height: 14, borderRadius: 4 }} />
+                  </div>
+                </div>
+              ))
+            : services.map((service) => {
+                const visual = getServiceVisual(service.name)
+                const categoryQuery = encodeURIComponent(service.name)
+                const backgroundImage = service.imageUrl || visual.img
 
-            return (
-            <div key={service.id ?? service.name} className="svc-card">
-              <div className="svc-bg" style={{ backgroundImage: `url(${backgroundImage})` }} />
-              <div className="svc-content">
-                <div style={{ marginBottom: 14 }}>{visual.icon}</div>
-                <h3 className="svc-title" style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#fff', marginBottom: 6 }}>
-                  {service.name}
-                </h3>
-                <p className="svc-desc" style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.45 }}>
-                  {service.description || 'Premium leather restoration tailored to your category.'}
-                </p>
-                <Link to={`/portfolio?category=${categoryQuery}`} className="learn-link">
-                  Learn More →
-                </Link>
-              </div>
-            </div>
-          )})}
+                return (
+                  <div key={service.id ?? service.name} className="svc-card">
+                    <div className="svc-bg" style={{ backgroundImage: `url(${backgroundImage})` }} />
+                    <div className="svc-content">
+                      <div style={{ marginBottom: 14 }}>{visual.icon}</div>
+                      <h3 className="svc-title" style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#fff', marginBottom: 6 }}>
+                        {service.name}
+                      </h3>
+                      <p className="svc-desc" style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.45 }}>
+                        {service.description || 'Premium leather restoration tailored to your category.'}
+                      </p>
+                      <Link to={`/portfolio?category=${categoryQuery}`} className="learn-link">
+                        Learn More →
+                      </Link>
+                    </div>
+                  </div>
+                )
+              })}
         </div>
       </section>
 
-      {/* ── CRAFT OF RESTORATION ── */}
       <section style={{ background: 'var(--bg)', padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,100px)' }}>
         <div className="craft-flex" style={{ display: 'flex', gap: 80, alignItems: 'center', maxWidth: 1160, margin: '0 auto' }}>
           <Reveal style={{ flex: '0 0 auto', width: 'min(520px, 100%)' }}>
@@ -533,8 +583,8 @@ export default function Home() {
                 src={crafterImg}
                 alt="leather restoration"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.6s' }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.04)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
               />
             </div>
           </Reveal>
@@ -553,7 +603,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── COMMERCIAL SERVICES ── */}
       <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,100px)' }}>
         <div className="commercial-flex" style={{ display: 'flex', gap: 80, alignItems: 'center', maxWidth: 1160, margin: '0 auto' }}>
           <Reveal style={{ flex: 1 }}>
@@ -564,7 +613,7 @@ export default function Home() {
               We partner with luxury hotels, car dealerships, and furniture retailers to maintain their premium leather inventory. Our commercial services ensure your business assets always look their best.
             </p>
             <ul className="bullet-list" style={{ marginBottom: 44 }}>
-              {['Fleet vehicle interior restoration', 'Hotel and restaurant furniture maintenance', 'Retail inventory touch-ups'].map(item => (
+              {['Fleet vehicle interior restoration', 'Hotel and restaurant furniture maintenance', 'Retail inventory touch-ups'].map((item) => (
                 <li key={item}>
                   <span className="bullet-dot" />
                   {item}
@@ -580,15 +629,14 @@ export default function Home() {
                 src={commercial1Img}
                 alt="commercial leather service"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.6s' }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.04)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
               />
             </div>
           </Reveal>
         </div>
       </section>
 
-      {/* ── WHY CHOOSE US ── */}
       <section style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,100px)' }}>
         <Reveal style={{ textAlign: 'center', marginBottom: 72 }}>
           <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(30px,4vw,50px)', fontWeight: 500, color: '#fff', marginBottom: 16 }}>
@@ -599,48 +647,41 @@ export default function Home() {
           </p>
         </Reveal>
 
-<div className="why-grid">
-  {WHY_ITEMS.map((item, i) => (
-    <Reveal key={item.num} delay={i * 80}>
-      
-      <div className="why-col why-col--numbered">
+        <div className="why-grid">
+          {WHY_ITEMS.map((item, i) => (
+            <Reveal key={item.num} delay={i * 80}>
+              <div className="why-col why-col--numbered">
+                <div className="why-col__num">{item.num}</div>
+                <div className="why-col__content">
+                  <h3
+                    style={{
+                      fontFamily: 'var(--serif)',
+                      fontSize: 22,
+                      fontWeight: 500,
+                      color: 'var(--gold-light)',
+                      marginBottom: 14,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {item.title}
+                  </h3>
 
-        {/* Велика цифра */}
-        <div className="why-col__num">
-          {item.num}
+                  <p
+                    style={{
+                      fontFamily: 'var(--sans)',
+                      fontSize: 14,
+                      color: 'var(--text-dim)',
+                      lineHeight: 1.75,
+                    }}
+                  >
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            </Reveal>
+          ))}
         </div>
-
-        <div className="why-col__content">
-          {/* Заголовок */}
-          <h3 style={{ 
-            fontFamily: 'var(--serif)',
-            fontSize: 22,
-            fontWeight: 500, 
-            color: 'var(--gold-light)',
-            marginBottom: 14,
-            lineHeight: 1.3 
-          }}>
-            {item.title}
-          </h3>
-
-          {/* Текст */}
-          <p style={{ 
-            fontFamily: 'var(--sans)',
-            fontSize: 14,
-            color: 'var(--text-dim)', 
-            lineHeight: 1.75
-          }}>
-            {item.desc}
-          </p>
-        </div>
-
-      </div>
-
-    </Reveal>
-  ))}
-</div>
       </section>
-
     </div>
   )
 }

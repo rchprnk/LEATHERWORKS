@@ -5,54 +5,6 @@ import api from '../services/api'
 const UPLOAD_TIMEOUT_MS = 60_000
 const SAVE_TIMEOUT_MS = 30_000
 
-function useObjectUrl(file, { delayMs = 60 } = {}) {
-  const [url, setUrl] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-    const clearT = setTimeout(() => {
-      if (!cancelled) setUrl(null)
-    }, 0)
-
-    if (!file) {
-      return () => {
-        cancelled = true
-        clearTimeout(clearT)
-      }
-    }
-
-    const objectUrl = URL.createObjectURL(file)
-
-    const load = async () => {
-      try {
-        const img = new Image()
-        img.src = objectUrl
-        if (typeof img.decode === 'function') {
-          await img.decode()
-        } else {
-          await new Promise((resolve, reject) => {
-            img.onload = resolve
-            img.onerror = reject
-          })
-        }
-      } catch {
-        // ignore (we still want to show the preview)
-      }
-      if (!cancelled) setUrl(objectUrl)
-    }
-
-    const t = delayMs ? setTimeout(load, delayMs) : (load(), null)
-    return () => {
-      cancelled = true
-      if (t) clearTimeout(t)
-      clearTimeout(clearT)
-      URL.revokeObjectURL(objectUrl)
-    }
-  }, [file, delayMs])
-
-  return url
-}
-
 function openFilePicker(inputRef) {
   const el = inputRef?.current
   if (!el) return
@@ -70,6 +22,83 @@ function finalizeFileSelection() {
   } catch {
     // ignore
   }
+}
+
+function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
+  const inputRef = useRef(null)
+  const objectUrlRef = useRef(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+  }, [])
+
+  function setPreviewFromFile(file) {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+    objectUrlRef.current = null
+
+    if (!file) {
+      setPreviewUrl(null)
+      return
+    }
+
+    const url = URL.createObjectURL(file)
+    objectUrlRef.current = url
+    setPreviewUrl(url)
+  }
+
+  function selectFile(file) {
+    const v = validate ? validate(file) : { ok: true }
+    if (!v.ok) {
+      onInvalid?.(v.message || 'Invalid file.')
+      return
+    }
+    onFileSelected?.(file || null)
+    setPreviewFromFile(file || null)
+  }
+
+  function open(e) {
+    e?.preventDefault?.()
+    e?.stopPropagation?.()
+    openFilePicker(inputRef)
+  }
+
+  function onChange(e) {
+    e?.preventDefault?.()
+    const files = e?.target?.files
+    if (!files || files.length === 0) {
+      try {
+        e.target.value = null
+      } catch {
+        // ignore
+      }
+      return
+    }
+    const file = files[0] || null
+    selectFile(file)
+    try {
+      e.target.value = null
+    } catch {
+      // ignore
+    }
+    finalizeFileSelection()
+  }
+
+  function clear(e) {
+    e?.preventDefault?.()
+    e?.stopPropagation?.()
+    selectFile(null)
+    try {
+      if (inputRef.current) inputRef.current.value = ''
+    } catch {
+      // ignore
+    }
+  }
+
+  return { inputRef, previewUrl, open, onChange, clear, selectFile, setPreviewFromFile }
 }
 
 async function fetchPortfolio() {
@@ -378,25 +407,84 @@ export default function Admin() {
     after: null,
   })
 
-  const categoryImageInputRef = useRef(null)
-  const [categoryImageFile, setCategoryImageFileState] = useState(null)
-  const categoryImagePreviewUrl = useObjectUrl(categoryImageFile)
+  const [categoryImageFile, setCategoryImageFile] = useState(null)
+  const {
+    inputRef: categoryImageInputRef,
+    previewUrl: categoryImagePreviewUrl,
+    open: openCategoryPicker,
+    onChange: onCategoryImageChange,
+    clear: clearCategoryImage,
+    selectFile: selectCategoryImageFile,
+  } = useImageFilePicker({
+    onFileSelected: setCategoryImageFile,
+    validate: validateCategoryImage,
+    onInvalid: (message) => setToast({ type: 'error', text: message }),
+  })
 
-  const editCategoryImageInputRef = useRef(null)
-  const [editCategoryImageFile, setEditCategoryImageFileState] = useState(null)
-  const editCategoryImagePreviewUrl = useObjectUrl(editCategoryImageFile)
+  const [editCategoryImageFile, setEditCategoryImageFile] = useState(null)
+  const {
+    inputRef: editCategoryImageInputRef,
+    previewUrl: editCategoryImagePreviewUrl,
+    open: openEditCategoryPicker,
+    onChange: onEditCategoryImageChange,
+    clear: clearEditCategoryImage,
+  } = useImageFilePicker({
+    onFileSelected: setEditCategoryImageFile,
+    validate: validateCategoryImage,
+    onInvalid: (message) => setToast({ type: 'error', text: message }),
+  })
 
-  const beforeInputRef = useRef(null)
-  const afterInputRef = useRef(null)
-  const beforePreviewUrl = useObjectUrl(newItem.before)
-  const afterPreviewUrl = useObjectUrl(newItem.after)
+  const {
+    inputRef: beforeInputRef,
+    previewUrl: beforePreviewUrl,
+    open: openBeforePicker,
+    onChange: onBeforeChange,
+    selectFile: selectBeforeFile,
+    clear: clearBeforeFile,
+  } = useImageFilePicker({
+    onFileSelected: (file) => setNewItem((s) => ({ ...s, before: file })),
+    validate: validateWorkImage,
+    onInvalid: (message) => setToast({ type: 'error', text: message }),
+  })
 
-  const editWorkBeforeInputRef = useRef(null)
-  const editWorkAfterInputRef = useRef(null)
-  const [editWorkBeforeFile, setEditWorkBeforeFileState] = useState(null)
-  const [editWorkAfterFile, setEditWorkAfterFileState] = useState(null)
-  const editWorkBeforePreviewUrl = useObjectUrl(editWorkBeforeFile)
-  const editWorkAfterPreviewUrl = useObjectUrl(editWorkAfterFile)
+  const {
+    inputRef: afterInputRef,
+    previewUrl: afterPreviewUrl,
+    open: openAfterPicker,
+    onChange: onAfterChange,
+    selectFile: selectAfterFile,
+    clear: clearAfterFile,
+  } = useImageFilePicker({
+    onFileSelected: (file) => setNewItem((s) => ({ ...s, after: file })),
+    validate: validateWorkImage,
+    onInvalid: (message) => setToast({ type: 'error', text: message }),
+  })
+
+  const [editWorkBeforeFile, setEditWorkBeforeFile] = useState(null)
+  const {
+    inputRef: editWorkBeforeInputRef,
+    previewUrl: editWorkBeforePreviewUrl,
+    open: openEditWorkBeforePicker,
+    onChange: onEditWorkBeforeChange,
+    clear: clearEditWorkBeforeFile,
+  } = useImageFilePicker({
+    onFileSelected: setEditWorkBeforeFile,
+    validate: validateWorkImage,
+    onInvalid: (message) => setToast({ type: 'error', text: message }),
+  })
+
+  const [editWorkAfterFile, setEditWorkAfterFile] = useState(null)
+  const {
+    inputRef: editWorkAfterInputRef,
+    previewUrl: editWorkAfterPreviewUrl,
+    open: openEditWorkAfterPicker,
+    onChange: onEditWorkAfterChange,
+    clear: clearEditWorkAfterFile,
+  } = useImageFilePicker({
+    onFileSelected: setEditWorkAfterFile,
+    validate: validateWorkImage,
+    onInvalid: (message) => setToast({ type: 'error', text: message }),
+  })
 
   function validateCategoryImage(file) {
     if (!file) return { ok: true }
@@ -408,34 +496,6 @@ export default function Admin() {
     return { ok: true }
   }
 
-  function setCategoryImageFile(file) {
-    const v = validateCategoryImage(file)
-    if (!v.ok) {
-      setToast({ type: 'error', text: v.message })
-      return
-    }
-    setCategoryImageFileState(file || null)
-  }
-
-  function clearCategoryImage() {
-    setCategoryImageFile(null)
-    if (categoryImageInputRef.current) categoryImageInputRef.current.value = ''
-  }
-
-  function setEditCategoryImageFile(file) {
-    const v = validateCategoryImage(file)
-    if (!v.ok) {
-      setToast({ type: 'error', text: v.message })
-      return
-    }
-    setEditCategoryImageFileState(file || null)
-  }
-
-  function resetEditCategoryImage() {
-    setEditCategoryImageFileState(null)
-    if (editCategoryImageInputRef.current) editCategoryImageInputRef.current.value = ''
-  }
-
   function validateWorkImage(file) {
     if (!file) return { ok: true }
     if (file.size > 15 * 1024 * 1024) return { ok: false, message: 'Image must be <= 15MB.' }
@@ -443,49 +503,24 @@ export default function Admin() {
     return { ok: true }
   }
 
-  function setEditWorkBeforeFile(file) {
-    const v = validateWorkImage(file)
-    if (!v.ok) {
-      setToast({ type: 'error', text: v.message })
-      return
-    }
-    setEditWorkBeforeFileState(file || null)
-  }
-
-  function setEditWorkAfterFile(file) {
-    const v = validateWorkImage(file)
-    if (!v.ok) {
-      setToast({ type: 'error', text: v.message })
-      return
-    }
-    setEditWorkAfterFileState(file || null)
+  function resetEditCategoryImage() {
+    clearEditCategoryImage()
   }
 
   function resetEditWorkImages() {
-    setEditWorkBeforeFileState(null)
-    setEditWorkAfterFileState(null)
-    if (editWorkBeforeInputRef.current) editWorkBeforeInputRef.current.value = ''
-    if (editWorkAfterInputRef.current) editWorkAfterInputRef.current.value = ''
-  }
-
-  function setBeforeFile(file) {
-    setNewItem((s) => ({ ...s, before: file }))
-  }
-
-  function setAfterFile(file) {
-    setNewItem((s) => ({ ...s, after: file }))
+    clearEditWorkBeforeFile()
+    clearEditWorkAfterFile()
   }
 
   function resetNewWorkForm(formEl) {
     setNewItem({ title: '', description: '', category: '', before: null, after: null })
-    if (beforeInputRef.current) beforeInputRef.current.value = ''
-    if (afterInputRef.current) afterInputRef.current.value = ''
+    clearBeforeFile()
+    clearAfterFile()
     formEl?.reset?.()
   }
 
   function resetNewCategoryForm(formEl) {
-    setCategoryImageFileState(null)
-    if (categoryImageInputRef.current) categoryImageInputRef.current.value = ''
+    clearCategoryImage()
     formEl?.reset?.()
   }
 
@@ -511,16 +546,6 @@ export default function Admin() {
     setEditingWorkId(null)
     setEditWorkForm({ title: '', description: '' })
     resetEditWorkImages()
-  }
-
-  function clearBefore() {
-    setBeforeFile(null)
-    if (beforeInputRef.current) beforeInputRef.current.value = ''
-  }
-
-  function clearAfter() {
-    setAfterFile(null)
-    if (afterInputRef.current) afterInputRef.current.value = ''
   }
 
   async function onSubmitNewItem(e) {
@@ -774,18 +799,12 @@ export default function Admin() {
                                   className="admin-file-input"
                                   type="file"
                                   accept="image/*"
-                                  onChange={(e) => {
-                                    const f = e.target.files?.[0] || null
-                                    setTimeout(() => {
-                                      setEditWorkBeforeFile(f)
-                                      finalizeFileSelection()
-                                    }, 0)
-                                  }}
+                                  onChange={onEditWorkBeforeChange}
                                 />
                                 <button
                                   type="button"
                                   className="admin-img-change"
-                                  onClick={() => openFilePicker(editWorkBeforeInputRef)}
+                                  onClick={openEditWorkBeforePicker}
                                   aria-label="Change before image"
                                 >
                                   <Icon name="camera" />
@@ -809,18 +828,12 @@ export default function Admin() {
                                   className="admin-file-input"
                                   type="file"
                                   accept="image/*"
-                                  onChange={(e) => {
-                                    const f = e.target.files?.[0] || null
-                                    setTimeout(() => {
-                                      setEditWorkAfterFile(f)
-                                      finalizeFileSelection()
-                                    }, 0)
-                                  }}
+                                  onChange={onEditWorkAfterChange}
                                 />
                                 <button
                                   type="button"
                                   className="admin-img-change"
-                                  onClick={() => openFilePicker(editWorkAfterInputRef)}
+                                  onClick={openEditWorkAfterPicker}
                                   aria-label="Change after image"
                                 >
                                   <Icon name="camera" />
@@ -1024,16 +1037,16 @@ export default function Admin() {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') openFilePicker(beforeInputRef)
+                          if (e.key === 'Enter' || e.key === ' ') openBeforePicker(e)
                         }}
-                        onClick={() => openFilePicker(beforeInputRef)}
+                        onClick={openBeforePicker}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
                         onDrop={(e) => {
                           e.preventDefault()
                           const file = e.dataTransfer?.files?.[0]
-                          if (file) setBeforeFile(file)
+                          if (file) selectBeforeFile(file)
                         }}
                       >
                         <input
@@ -1041,13 +1054,7 @@ export default function Admin() {
                           className="admin-file-input"
                           type="file"
                           accept="image/*"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0] || null
-                            setTimeout(() => {
-                              setBeforeFile(f)
-                              finalizeFileSelection()
-                            }, 0)
-                          }}
+                          onChange={onBeforeChange}
                         />
 
                         {!beforePreviewUrl && (
@@ -1072,11 +1079,7 @@ export default function Admin() {
                               <button
                                 className="admin-upload-action"
                                 type="button"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  clearBefore()
-                                }}
+                                onClick={clearBeforeFile}
                                 aria-label="Remove before image"
                               >
                                 ×
@@ -1093,16 +1096,16 @@ export default function Admin() {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') openFilePicker(afterInputRef)
+                          if (e.key === 'Enter' || e.key === ' ') openAfterPicker(e)
                         }}
-                        onClick={() => openFilePicker(afterInputRef)}
+                        onClick={openAfterPicker}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
                         onDrop={(e) => {
                           e.preventDefault()
                           const file = e.dataTransfer?.files?.[0]
-                          if (file) setAfterFile(file)
+                          if (file) selectAfterFile(file)
                         }}
                       >
                         <input
@@ -1110,13 +1113,7 @@ export default function Admin() {
                           className="admin-file-input"
                           type="file"
                           accept="image/*"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0] || null
-                            setTimeout(() => {
-                              setAfterFile(f)
-                              finalizeFileSelection()
-                            }, 0)
-                          }}
+                          onChange={onAfterChange}
                         />
 
                         {!afterPreviewUrl && (
@@ -1141,11 +1138,7 @@ export default function Admin() {
                               <button
                                 className="admin-upload-action"
                                 type="button"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  clearAfter()
-                                }}
+                                onClick={clearAfterFile}
                                 aria-label="Remove after image"
                               >
                                 ×
@@ -1236,19 +1229,13 @@ export default function Admin() {
                                 className="admin-file-input"
                                 type="file"
                                 accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                                onChange={(e) => {
-                                  const f = e.target.files?.[0] || null
-                                  setTimeout(() => {
-                                    setEditCategoryImageFile(f)
-                                    finalizeFileSelection()
-                                  }, 0)
-                                }}
+                                onChange={onEditCategoryImageChange}
                               />
                               <button
                                 type="button"
                                 className="admin-img-change"
                                 style={{ width: 30, height: 30, top: 8, right: 8 }}
-                                onClick={() => openFilePicker(editCategoryImageInputRef)}
+                                onClick={openEditCategoryPicker}
                                 aria-label="Change category image"
                               >
                                 <Icon name="camera" />
@@ -1394,16 +1381,16 @@ export default function Admin() {
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') openFilePicker(categoryImageInputRef)
+                        if (e.key === 'Enter' || e.key === ' ') openCategoryPicker(e)
                       }}
-                      onClick={() => openFilePicker(categoryImageInputRef)}
+                      onClick={openCategoryPicker}
                       onDragOver={(e) => {
                         e.preventDefault()
                       }}
                       onDrop={(e) => {
                         e.preventDefault()
                         const file = e.dataTransfer?.files?.[0]
-                        if (file) setCategoryImageFile(file)
+                        if (file) selectCategoryImageFile(file)
                       }}
                       style={{ minHeight: 180 }}
                     >
@@ -1412,13 +1399,7 @@ export default function Admin() {
                         className="admin-file-input"
                         type="file"
                         accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0] || null
-                          setTimeout(() => {
-                            setCategoryImageFile(f)
-                            finalizeFileSelection()
-                          }, 0)
-                        }}
+                        onChange={onCategoryImageChange}
                       />
 
                       {!categoryImagePreviewUrl && (
@@ -1442,11 +1423,7 @@ export default function Admin() {
                             <button
                               className="admin-upload-action"
                               type="button"
-                              onClick={(ev) => {
-                                ev.preventDefault()
-                                ev.stopPropagation()
-                                clearCategoryImage()
-                              }}
+                              onClick={clearCategoryImage}
                               aria-label="Remove category image"
                             >
                               ×

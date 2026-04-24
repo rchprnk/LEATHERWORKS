@@ -84,7 +84,6 @@ function PortfolioCard({ item }) {
             onError={() => setBeforeErr(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.20)' }} />
           <div style={{
             position: 'absolute', top: 16, left: 16,
             background: 'rgba(130,24,26,0.80)', border: '1.12px solid #C10007',

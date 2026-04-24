@@ -101,6 +101,32 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
   return { inputRef, previewUrl, open, onChange, clear, selectFile, setPreviewFromFile }
 }
 
+function useMobileTap(handler, { suppressClickMs = 700 } = {}) {
+  const lastTouchTsRef = useRef(0)
+  const handlerRef = useRef(handler)
+
+  useEffect(() => {
+    handlerRef.current = handler
+  }, [handler])
+
+  return useMemo(() => {
+    return {
+      onTouchEnd: (e) => {
+        lastTouchTsRef.current = Date.now()
+        handlerRef.current?.(e)
+      },
+      onClick: (e) => {
+        if (Date.now() - lastTouchTsRef.current < suppressClickMs) {
+          e?.preventDefault?.()
+          e?.stopPropagation?.()
+          return
+        }
+        handlerRef.current?.(e)
+      },
+    }
+  }, [suppressClickMs])
+}
+
 async function fetchPortfolio() {
   const res = await api.get('/api/portfolio')
   return res.data?.data ?? res.data
@@ -486,6 +512,13 @@ export default function Admin() {
     onInvalid: (message) => setToast({ type: 'error', text: message }),
   })
 
+  const beforeOpenTap = useMobileTap(openBeforePicker)
+  const afterOpenTap = useMobileTap(openAfterPicker)
+  const categoryOpenTap = useMobileTap(openCategoryPicker)
+  const editWorkBeforeOpenTap = useMobileTap(openEditWorkBeforePicker)
+  const editWorkAfterOpenTap = useMobileTap(openEditWorkAfterPicker)
+  const editCategoryOpenTap = useMobileTap(openEditCategoryPicker)
+
   function validateCategoryImage(file) {
     if (!file) return { ok: true }
     const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -564,8 +597,12 @@ export default function Admin() {
     fd.append('category', newItem.category)
     fd.append('beforeImage', newItem.before)
     fd.append('afterImage', newItem.after)
-    await createMutation.mutateAsync(fd)
-    resetNewWorkForm(e.target)
+    try {
+      await createMutation.mutateAsync(fd)
+      resetNewWorkForm(e.target)
+    } catch (err) {
+      setToast({ type: 'error', text: err?.message || 'Failed to add item.' })
+    }
   }
 
   // Contact
@@ -748,6 +785,9 @@ export default function Admin() {
             {toast && (
               <div
                 style={{
+                  position: 'sticky',
+                  top: 12,
+                  zIndex: 99999,
                   padding: '10px 12px',
                   borderRadius: 10,
                   border: `1px solid ${toast.type === 'success' ? 'rgba(80,200,120,0.35)' : 'rgba(255,90,90,0.35)'}`,
@@ -805,8 +845,8 @@ export default function Admin() {
                                 <button
                                   type="button"
                                   className="admin-img-change"
-                                  onClick={openEditWorkBeforePicker}
-                                  onTouchEnd={openEditWorkBeforePicker}
+                                  onClick={editWorkBeforeOpenTap.onClick}
+                                  onTouchEnd={editWorkBeforeOpenTap.onTouchEnd}
                                   aria-label="Change before image"
                                 >
                                   <Icon name="camera" />
@@ -835,8 +875,8 @@ export default function Admin() {
                                 <button
                                   type="button"
                                   className="admin-img-change"
-                                  onClick={openEditWorkAfterPicker}
-                                  onTouchEnd={openEditWorkAfterPicker}
+                                  onClick={editWorkAfterOpenTap.onClick}
+                                  onTouchEnd={editWorkAfterOpenTap.onTouchEnd}
                                   aria-label="Change after image"
                                 >
                                   <Icon name="camera" />
@@ -1042,8 +1082,8 @@ export default function Admin() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') openBeforePicker(e)
                         }}
-                        onClick={openBeforePicker}
-                        onTouchEnd={openBeforePicker}
+                        onClick={beforeOpenTap.onClick}
+                        onTouchEnd={beforeOpenTap.onTouchEnd}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1102,8 +1142,8 @@ export default function Admin() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') openAfterPicker(e)
                         }}
-                        onClick={openAfterPicker}
-                        onTouchEnd={openAfterPicker}
+                        onClick={afterOpenTap.onClick}
+                        onTouchEnd={afterOpenTap.onTouchEnd}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1240,8 +1280,8 @@ export default function Admin() {
                                 type="button"
                                 className="admin-img-change"
                                 style={{ width: 30, height: 30, top: 8, right: 8 }}
-                                onClick={openEditCategoryPicker}
-                                onTouchEnd={openEditCategoryPicker}
+                                onClick={editCategoryOpenTap.onClick}
+                                onTouchEnd={editCategoryOpenTap.onTouchEnd}
                                 aria-label="Change category image"
                               >
                                 <Icon name="camera" />
@@ -1389,8 +1429,8 @@ export default function Admin() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') openCategoryPicker(e)
                       }}
-                      onClick={openCategoryPicker}
-                      onTouchEnd={openCategoryPicker}
+                      onClick={categoryOpenTap.onClick}
+                      onTouchEnd={categoryOpenTap.onTouchEnd}
                       onDragOver={(e) => {
                         e.preventDefault()
                       }}

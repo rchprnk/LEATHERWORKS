@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 
@@ -25,6 +25,7 @@ function finalizeFileSelection() {
 }
 
 function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
+  const inputId = useId()
   const inputRef = useRef(null)
   const objectUrlRef = useRef(null)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -98,7 +99,7 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
     }
   }
 
-  return { inputRef, previewUrl, open, onChange, clear, selectFile, setPreviewFromFile }
+  return { inputId, inputRef, previewUrl, open, onChange, clear, selectFile, setPreviewFromFile }
 }
 
 async function fetchPortfolio() {
@@ -409,6 +410,7 @@ export default function Admin() {
 
   const [categoryImageFile, setCategoryImageFile] = useState(null)
   const {
+    inputId: categoryImageInputId,
     inputRef: categoryImageInputRef,
     previewUrl: categoryImagePreviewUrl,
     open: openCategoryPicker,
@@ -423,6 +425,7 @@ export default function Admin() {
 
   const [editCategoryImageFile, setEditCategoryImageFile] = useState(null)
   const {
+    inputId: editCategoryImageInputId,
     inputRef: editCategoryImageInputRef,
     previewUrl: editCategoryImagePreviewUrl,
     open: openEditCategoryPicker,
@@ -435,6 +438,7 @@ export default function Admin() {
   })
 
   const {
+    inputId: beforeInputId,
     inputRef: beforeInputRef,
     previewUrl: beforePreviewUrl,
     open: openBeforePicker,
@@ -448,6 +452,7 @@ export default function Admin() {
   })
 
   const {
+    inputId: afterInputId,
     inputRef: afterInputRef,
     previewUrl: afterPreviewUrl,
     open: openAfterPicker,
@@ -462,6 +467,7 @@ export default function Admin() {
 
   const [editWorkBeforeFile, setEditWorkBeforeFile] = useState(null)
   const {
+    inputId: editWorkBeforeInputId,
     inputRef: editWorkBeforeInputRef,
     previewUrl: editWorkBeforePreviewUrl,
     open: openEditWorkBeforePicker,
@@ -475,6 +481,7 @@ export default function Admin() {
 
   const [editWorkAfterFile, setEditWorkAfterFile] = useState(null)
   const {
+    inputId: editWorkAfterInputId,
     inputRef: editWorkAfterInputRef,
     previewUrl: editWorkAfterPreviewUrl,
     open: openEditWorkAfterPicker,
@@ -671,7 +678,7 @@ export default function Admin() {
         .admin-media-pill.after { left: auto; right: 12px; background: rgba(13,84,43,0.80); border-color: #008236; }
         .admin-media-pill { z-index: 3; pointer-events: none; }
         /* Mobile-safe hidden file input (must not be display:none for iOS click() reliability) */
-        .admin-file-input { position: absolute; opacity: 0; width: 1px; height: 1px; z-index: -1; left: 0; top: 0; }
+        .admin-file-input { position: absolute; opacity: 0; width: 1px; height: 1px; left: 0; top: 0; pointer-events: none; }
         .admin-upload-box { position: relative; border-radius: 14px; border: 1.2px dashed rgba(255,255,255,0.18); background: rgba(10,10,10,0.40); min-height: 220px; display: grid; place-items: center; overflow: hidden; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         @media (hover: hover) and (pointer: fine) {
           .admin-upload-box:hover { border-color: rgba(200,144,42,0.65); background: rgba(10,10,10,0.55); transform: translateY(-1px); }
@@ -803,20 +810,20 @@ export default function Admin() {
                             {editingWorkId === item.id && (
                               <>
                                 <input
+                                  id={editWorkBeforeInputId}
                                   ref={editWorkBeforeInputRef}
                                   className="admin-file-input"
                                   type="file"
                                   accept="image/*"
                                   onChange={onEditWorkBeforeChange}
                                 />
-                                <button
-                                  type="button"
+                                <label
+                                  htmlFor={editWorkBeforeInputId}
                                   className="admin-img-change"
-                                  onClick={openEditWorkBeforePicker}
                                   aria-label="Change before image"
                                 >
                                   <Icon name="camera" />
-                                </button>
+                                </label>
                               </>
                             )}
                           </div>
@@ -832,20 +839,20 @@ export default function Admin() {
                             {editingWorkId === item.id && (
                               <>
                                 <input
+                                  id={editWorkAfterInputId}
                                   ref={editWorkAfterInputRef}
                                   className="admin-file-input"
                                   type="file"
                                   accept="image/*"
                                   onChange={onEditWorkAfterChange}
                                 />
-                                <button
-                                  type="button"
+                                <label
+                                  htmlFor={editWorkAfterInputId}
                                   className="admin-img-change"
-                                  onClick={openEditWorkAfterPicker}
                                   aria-label="Change after image"
                                 >
                                   <Icon name="camera" />
-                                </button>
+                                </label>
                               </>
                             )}
                           </div>
@@ -1040,14 +1047,9 @@ export default function Admin() {
 
                   <div className="admin-grid-2">
                     <Field label="Before Photo">
-                      <div
+                      <label
                         className="admin-upload-box"
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') openBeforePicker(e)
-                        }}
-                        onClick={openBeforePicker}
+                        htmlFor={beforeInputId}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1058,6 +1060,7 @@ export default function Admin() {
                         }}
                       >
                         <input
+                          id={beforeInputId}
                           ref={beforeInputRef}
                           className="admin-file-input"
                           type="file"
@@ -1095,18 +1098,13 @@ export default function Admin() {
                             </div>
                           </>
                         )}
-                      </div>
+                      </label>
                     </Field>
 
                     <Field label="After Photo">
-                      <div
+                      <label
                         className="admin-upload-box"
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') openAfterPicker(e)
-                        }}
-                        onClick={openAfterPicker}
+                        htmlFor={afterInputId}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1117,6 +1115,7 @@ export default function Admin() {
                         }}
                       >
                         <input
+                          id={afterInputId}
                           ref={afterInputRef}
                           className="admin-file-input"
                           type="file"
@@ -1154,7 +1153,7 @@ export default function Admin() {
                             </div>
                           </>
                         )}
-                      </div>
+                      </label>
                     </Field>
                   </div>
 
@@ -1233,21 +1232,21 @@ export default function Admin() {
                           {editingCategoryId === cat.id && (
                             <>
                               <input
+                                id={editCategoryImageInputId}
                                 ref={editCategoryImageInputRef}
                                 className="admin-file-input"
                                 type="file"
                                 accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                                 onChange={onEditCategoryImageChange}
                               />
-                              <button
-                                type="button"
+                              <label
+                                htmlFor={editCategoryImageInputId}
                                 className="admin-img-change"
                                 style={{ width: 30, height: 30, top: 8, right: 8 }}
-                                onClick={openEditCategoryPicker}
                                 aria-label="Change category image"
                               >
                                 <Icon name="camera" />
-                              </button>
+                              </label>
                             </>
                           )}
                         </div>
@@ -1384,14 +1383,9 @@ export default function Admin() {
                     </Field>
                   </div>
                   <Field label="Category Image">
-                    <div
+                    <label
                       className="admin-upload-box"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') openCategoryPicker(e)
-                      }}
-                      onClick={openCategoryPicker}
+                      htmlFor={categoryImageInputId}
                       onDragOver={(e) => {
                         e.preventDefault()
                       }}
@@ -1403,6 +1397,7 @@ export default function Admin() {
                       style={{ minHeight: 180 }}
                     >
                       <input
+                        id={categoryImageInputId}
                         ref={categoryImageInputRef}
                         className="admin-file-input"
                         type="file"
@@ -1439,7 +1434,7 @@ export default function Admin() {
                           </div>
                         </>
                       )}
-                    </div>
+                    </label>
                   </Field>
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button type="submit" style={styles.button} disabled={createCategoryMutation.isPending}>

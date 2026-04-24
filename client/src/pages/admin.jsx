@@ -666,7 +666,8 @@ export default function Admin() {
         .admin-media-pill { position: absolute; top: 12px; left: 12px; background: rgba(130,24,26,0.80); border: 1.12px solid #C10007; border-radius: 6px; padding: 7px 13px; font-size: 12px; font-weight: 600; color: #fff; letter-spacing: 0.6px; }
         .admin-media-pill.after { left: auto; right: 12px; background: rgba(13,84,43,0.80); border-color: #008236; }
         .admin-media-pill { z-index: 3; pointer-events: none; }
-        .admin-file-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        /* Mobile-safe hidden file input (must not be display:none for iOS click() reliability) */
+        .admin-file-input { position: absolute; opacity: 0; width: 1px; height: 1px; z-index: -1; left: 0; top: 0; }
         .admin-upload-box { position: relative; border-radius: 14px; border: 1.2px dashed rgba(255,255,255,0.18); background: rgba(10,10,10,0.40); min-height: 220px; display: grid; place-items: center; overflow: hidden; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         @media (hover: hover) and (pointer: fine) {
           .admin-upload-box:hover { border-color: rgba(200,144,42,0.65); background: rgba(10,10,10,0.55); transform: translateY(-1px); }
@@ -677,8 +678,8 @@ export default function Admin() {
         .admin-upload-sub { font-size: 12px; color: rgba(255,255,255,0.65); line-height: 1.5; }
         .admin-upload-preview { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
         .admin-upload-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .admin-upload-actions { position: absolute; inset: 0; z-index: 3; display: flex; align-items: flex-start; justify-content: flex-end; padding: 10px; gap: 8px; pointer-events: none; }
-        .admin-upload-action { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; line-height: 1; }
+        .admin-upload-actions { position: absolute; inset: 0; z-index: 9999; display: flex; align-items: flex-start; justify-content: flex-end; padding: 10px; gap: 8px; pointer-events: none; }
+        .admin-upload-action { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; line-height: 1; user-select: none; -webkit-user-select: none; touch-action: manipulation; pointer-events: auto !important; }
         .admin-upload-action:hover { background: rgba(0,0,0,0.72); }
         .admin-upload-action { pointer-events: auto; }
         .admin-upload-chip { position: absolute; left: 12px; bottom: 12px; z-index: 2; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(0,0,0,0.40); color: rgba(255,255,255,0.92); font-size: 12px; letter-spacing: 0.4px; pointer-events: none; }
@@ -691,7 +692,7 @@ export default function Admin() {
         .admin-cat-actions { flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; }
         .admin-work-actions { flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; }
         .admin-work-desc { color: #A1A1A1; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-        .admin-img-change { position: absolute; top: 10px; right: 10px; z-index: 4; width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; }
+        .admin-img-change { position: absolute; top: 10px; right: 10px; z-index: 9999; width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; user-select: none; -webkit-user-select: none; touch-action: manipulation; pointer-events: auto !important; }
         .admin-img-change:hover { background: rgba(0,0,0,0.72); }
         @media (max-width: 900px) {
           .admin-shell { grid-template-columns: 1fr; }
@@ -805,6 +806,7 @@ export default function Admin() {
                                   type="button"
                                   className="admin-img-change"
                                   onClick={openEditWorkBeforePicker}
+                                  onTouchEnd={openEditWorkBeforePicker}
                                   aria-label="Change before image"
                                 >
                                   <Icon name="camera" />
@@ -834,6 +836,7 @@ export default function Admin() {
                                   type="button"
                                   className="admin-img-change"
                                   onClick={openEditWorkAfterPicker}
+                                  onTouchEnd={openEditWorkAfterPicker}
                                   aria-label="Change after image"
                                 >
                                   <Icon name="camera" />
@@ -1040,6 +1043,7 @@ export default function Admin() {
                           if (e.key === 'Enter' || e.key === ' ') openBeforePicker(e)
                         }}
                         onClick={openBeforePicker}
+                        onTouchEnd={openBeforePicker}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1099,6 +1103,7 @@ export default function Admin() {
                           if (e.key === 'Enter' || e.key === ' ') openAfterPicker(e)
                         }}
                         onClick={openAfterPicker}
+                        onTouchEnd={openAfterPicker}
                         onDragOver={(e) => {
                           e.preventDefault()
                         }}
@@ -1236,6 +1241,7 @@ export default function Admin() {
                                 className="admin-img-change"
                                 style={{ width: 30, height: 30, top: 8, right: 8 }}
                                 onClick={openEditCategoryPicker}
+                                onTouchEnd={openEditCategoryPicker}
                                 aria-label="Change category image"
                               >
                                 <Icon name="camera" />
@@ -1384,6 +1390,7 @@ export default function Admin() {
                         if (e.key === 'Enter' || e.key === ' ') openCategoryPicker(e)
                       }}
                       onClick={openCategoryPicker}
+                      onTouchEnd={openCategoryPicker}
                       onDragOver={(e) => {
                         e.preventDefault()
                       }}

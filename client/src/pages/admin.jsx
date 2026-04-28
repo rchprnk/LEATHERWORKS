@@ -292,7 +292,16 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
 
     if (dragRef.current.mode === 'resize') {
       const minWidth = Math.max(90, Math.round(90 * aspect))
-      const maxWidth = Math.min(displayWidth, displayHeight * aspect)
+      const maxWidth = Math.min(
+        displayWidth,
+        displayHeight * aspect,
+        dragRef.current.corner === 'tl' || dragRef.current.corner === 'bl'
+          ? dragRef.current.frameX + dragRef.current.frameWidth
+          : displayWidth - dragRef.current.frameX,
+        (dragRef.current.corner === 'tl' || dragRef.current.corner === 'tr'
+          ? dragRef.current.frameY + dragRef.current.frameHeight
+          : displayHeight - dragRef.current.frameY) * aspect
+      )
       let nextWidth = dragRef.current.frameWidth
 
       if (dragRef.current.corner === 'br') {

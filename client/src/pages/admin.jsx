@@ -188,11 +188,12 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
   const [frame, setFrame] = useState({ x: 0, y: 0, width: 0, height: 0 })
   const [submitting, setSubmitting] = useState(false)
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 900 : false
 
   const aspect = request?.config?.aspect || 1
   const title = request?.config?.title || 'Adjust image'
   const helper = request?.config?.helper || 'Move the crop frame to choose the exact visible area for the site.'
-  const maxMediaWidth = typeof window !== 'undefined' ? Math.min(Math.max(window.innerWidth - 96, 240), 760) : 760
+  const maxMediaWidth = typeof window !== 'undefined' ? Math.min(Math.max(window.innerWidth - (isMobile ? 48 : 96), 240), 760) : 760
   const maxMediaHeight = typeof window !== 'undefined' ? Math.min(Math.max(window.innerHeight - 300, 240), 620) : 620
   const mediaScale = naturalSize.width && naturalSize.height
     ? Math.min(maxMediaWidth / naturalSize.width, maxMediaHeight / naturalSize.height, 1)
@@ -412,24 +413,24 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     >
       <div
         style={{
-          width: 'min(920px, 100%)',
-          maxHeight: 'min(92vh, 860px)',
+          width: isMobile ? '100%' : 'min(920px, 100%)',
+          maxHeight: isMobile ? '96vh' : 'min(92vh, 860px)',
           overflow: 'auto',
           borderRadius: 18,
           border: '1px solid rgba(255,255,255,0.12)',
           background: '#121212',
           boxShadow: '0 30px 90px rgba(0,0,0,0.45)',
-          padding: 20,
+          padding: isMobile ? 16 : 20,
           display: 'grid',
           gap: 18,
         }}
       >
         <div style={{ display: 'grid', gap: 8 }}>
-          <div style={{ fontSize: 22, fontWeight: 650 }}>{title}</div>
-          <div style={{ color: '#bdbdbd', fontSize: 14, lineHeight: 1.5 }}>{helper}</div>
+          <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 650 }}>{title}</div>
+          <div style={{ color: '#bdbdbd', fontSize: isMobile ? 13 : 14, lineHeight: 1.5 }}>{helper}</div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(240px, 280px)', gap: 18 }} className="admin-crop-layout">
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(240px, 280px)', gap: 18 }} className="admin-crop-layout">
           <div style={{ display: 'grid', gap: 12 }}>
             <div
               style={{
@@ -442,7 +443,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 overflow: 'hidden',
-                padding: 18,
+                padding: isMobile ? 10 : 18,
               }}
             >
               <div
@@ -516,8 +517,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                       key={handle.corner}
                       style={{
                         position: 'absolute',
-                        width: 24,
-                        height: 24,
+                        width: isMobile ? 28 : 24,
+                        height: isMobile ? 28 : 24,
                         borderRadius: 999,
                         border: '2px solid #fff',
                         background: '#c8902a',
@@ -555,7 +556,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: isMobile ? 'stretch' : 'flex-end', flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
               <button
                 type="button"
                 onClick={() => onCancel(createCropCancelError())}
@@ -566,6 +567,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   background: 'rgba(10,10,10,0.42)',
                   color: '#fff',
                   cursor: 'pointer',
+                  width: isMobile ? '100%' : 'auto',
                 }}
                 disabled={submitting}
               >
@@ -581,6 +583,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   background: 'rgba(200,144,42,0.12)',
                   color: '#fff',
                   cursor: 'pointer',
+                  width: isMobile ? '100%' : 'auto',
                 }}
                 disabled={submitting || !frame.width || !frame.height}
               >
@@ -1365,7 +1368,7 @@ export default function Admin() {
         .admin-file-input { position: absolute; opacity: 0; width: 1px; height: 1px; left: 0; top: 0; pointer-events: none; }
         .admin-upload-box { position: relative; border-radius: 14px; border: 1.2px dashed rgba(255,255,255,0.18); background: rgba(10,10,10,0.40); min-height: 220px; display: grid; place-items: center; overflow: hidden; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         .admin-upload-box--work { aspect-ratio: 4 / 5; min-height: 320px; }
-        .admin-upload-box--category { aspect-ratio: 1 / 1; min-height: 220px; }
+        .admin-upload-box--category { aspect-ratio: 1 / 1; min-height: 220px; width: min(100%, 360px); max-width: 360px; justify-self: start; }
         @media (hover: hover) and (pointer: fine) {
           .admin-upload-box:hover { border-color: rgba(200,144,42,0.65); background: rgba(10,10,10,0.55); transform: translateY(-1px); }
         }

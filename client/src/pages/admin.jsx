@@ -186,24 +186,36 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   const imageRef = useRef(null)
   const dragRef = useRef(null)
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
-  const [renderSize, setRenderSize] = useState({ width: 0, height: 0 })
   const [frame, setFrame] = useState({ x: 0, y: 0, width: 0, height: 0 })
   const [submitting, setSubmitting] = useState(false)
 
   const aspect = request?.config?.aspect || 1
   const title = request?.config?.title || 'Adjust image'
   const helper = request?.config?.helper || 'Move the crop frame to choose the exact visible area for the site.'
-
-  const displayWidth = renderSize.width
-  const displayHeight = renderSize.height
-  const displayScale = naturalSize.width && displayWidth ? naturalSize.width / displayWidth : 1
+  const maxMediaWidth = typeof window !== 'undefined' ? Math.min(Math.max(window.innerWidth - 96, 240), 760) : 760
+  const maxMediaHeight = typeof window !== 'undefined' ? Math.min(Math.max(window.innerHeight - 300, 240), 620) : 620
+  const mediaScale = naturalSize.width && naturalSize.height
+    ? Math.min(maxMediaWidth / naturalSize.width, maxMediaHeight / naturalSize.height, 1)
+    : 1
+  const displayWidth = naturalSize.width ? Math.max(1, Math.round(naturalSize.width * mediaScale)) : 0
+  const displayHeight = naturalSize.height ? Math.max(1, Math.round(naturalSize.height * mediaScale)) : 0
+  const displayScale = mediaScale || 1
 
   useEffect(() => {
-    setRenderSize({ width: 0, height: 0 })
     setFrame({ x: 0, y: 0, width: 0, height: 0 })
     setSubmitting(false)
     setNaturalSize({ width: 0, height: 0 })
   }, [request?.src])
+
+  useEffect(() => {
+    if (!request?.open) return
+    const img = imageRef.current
+    if (!img?.complete) return
+    const width = img.naturalWidth || 0
+    const height = img.naturalHeight || 0
+    if (!width || !height) return
+    setNaturalSize({ width, height })
+  }, [request?.open, request?.src])
 
   useEffect(() => {
     if (!displayWidth || !displayHeight) return
@@ -232,14 +244,9 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
 
   function onImageLoad(e) {
     const target = e.currentTarget
-    const rect = target.getBoundingClientRect()
     setNaturalSize({
       width: target.naturalWidth || 0,
       height: target.naturalHeight || 0,
-    })
-    setRenderSize({
-      width: Math.round(rect.width || target.clientWidth || 0),
-      height: Math.round(rect.height || target.clientHeight || 0),
     })
   }
 
@@ -394,10 +401,10 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   draggable={false}
                   style={{
                     display: 'block',
-                    width: 'auto',
-                    height: 'auto',
-                    maxWidth: 'min(760px, calc(100vw - 160px))',
-                    maxHeight: 'min(620px, calc(100vh - 320px))',
+                    width: displayWidth || 'auto',
+                    height: displayHeight || 'auto',
+                    maxWidth: 'none',
+                    maxHeight: 'none',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     pointerEvents: 'none',

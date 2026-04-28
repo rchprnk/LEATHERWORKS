@@ -186,48 +186,56 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   const imageRef = useRef(null)
   const dragRef = useRef(null)
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
-  const [zoom, setZoom] = useState(1)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const [frame, setFrame] = useState({ x: 0, y: 0, width: 0, height: 0 })
   const [submitting, setSubmitting] = useState(false)
 
   const aspect = request?.config?.aspect || 1
   const title = request?.config?.title || 'Adjust image'
-  const helper = request?.config?.helper || 'Move and zoom the image to match how it will appear on the site.'
+  const helper = request?.config?.helper || 'Move the crop frame to choose the exact visible area for the site.'
 
-  const maxFrameWidth = typeof window !== 'undefined' ? Math.min(window.innerWidth - 56, 520) : 520
-  const maxFrameHeight = typeof window !== 'undefined' ? Math.min(window.innerHeight - 250, 560) : 560
-  let frameWidth = aspect >= 1 ? maxFrameWidth : maxFrameHeight * aspect
-  let frameHeight = frameWidth / aspect
-  if (frameHeight > maxFrameHeight) {
-    frameHeight = maxFrameHeight
-    frameWidth = frameHeight * aspect
+  const maxStageWidth = typeof window !== 'undefined' ? Math.min(window.innerWidth - 80, 760) : 760
+  const maxStageHeight = typeof window !== 'undefined' ? Math.min(window.innerHeight - 270, 620) : 620
+
+  let displayWidth = 0
+  let displayHeight = 0
+  let displayScale = 1
+
+  if (naturalSize.width && naturalSize.height) {
+    displayScale = Math.min(maxStageWidth / naturalSize.width, maxStageHeight / naturalSize.height, 1)
+    displayWidth = Math.max(1, Math.round(naturalSize.width * displayScale))
+    displayHeight = Math.max(1, Math.round(naturalSize.height * displayScale))
   }
 
-  const baseScale = naturalSize.width && naturalSize.height
-    ? Math.max(frameWidth / naturalSize.width, frameHeight / naturalSize.height)
-    : 1
-
-  const displayWidth = naturalSize.width * baseScale * zoom
-  const displayHeight = naturalSize.height * baseScale * zoom
-  const minOffsetX = Math.min(0, frameWidth - displayWidth)
-  const minOffsetY = Math.min(0, frameHeight - displayHeight)
-
   useEffect(() => {
-    setZoom(1)
-    setOffset({ x: 0, y: 0 })
+    setFrame({ x: 0, y: 0, width: 0, height: 0 })
     setSubmitting(false)
     setNaturalSize({ width: 0, height: 0 })
   }, [request?.src])
 
   useEffect(() => {
-    if (!naturalSize.width || !naturalSize.height) return
-    const centeredX = (frameWidth - displayWidth) / 2
-    const centeredY = (frameHeight - displayHeight) / 2
-    setOffset((current) => ({
-      x: clamp(current.x || centeredX, minOffsetX, 0),
-      y: clamp(current.y || centeredY, minOffsetY, 0),
-    }))
-  }, [naturalSize.width, naturalSize.height, frameWidth, frameHeight, displayWidth, displayHeight, minOffsetX, minOffsetY])
+    if (!displayWidth || !displayHeight) return
+
+    let nextWidth
+    let nextHeight
+
+    if (aspect >= 1) {
+      nextWidth = Math.min(displayWidth * 0.82, displayHeight * 0.82 * aspect)
+      nextHeight = nextWidth / aspect
+    } else {
+      nextHeight = Math.min(displayHeight * 0.82, displayWidth * 0.82 / aspect)
+      nextWidth = nextHeight * aspect
+    }
+
+    nextWidth = Math.max(80, Math.round(nextWidth))
+    nextHeight = Math.max(80, Math.round(nextHeight))
+
+    setFrame({
+      width: nextWidth,
+      height: nextHeight,
+      x: Math.max(0, Math.round((displayWidth - nextWidth) / 2)),
+      y: Math.max(0, Math.round((displayHeight - nextHeight) / 2)),
+    })
+  }, [displayWidth, displayHeight, aspect])
 
   function onImageLoad(e) {
     const target = e.currentTarget
@@ -238,13 +246,14 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   }
 
   function handlePointerDown(e) {
-    if (!naturalSize.width || !naturalSize.height) return
+    if (!displayWidth || !displayHeight || !frame.width || !frame.height) return
+    e.preventDefault?.()
     const point = e.touches?.[0] || e
     dragRef.current = {
       startX: point.clientX,
       startY: point.clientY,
-      offsetX: offset.x,
-      offsetY: offset.y,
+      frameX: frame.x,
+      frameY: frame.y,
     }
   }
 
@@ -252,12 +261,13 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     if (!dragRef.current) return
     e.preventDefault?.()
     const point = e.touches?.[0] || e
-    const nextX = dragRef.current.offsetX + (point.clientX - dragRef.current.startX)
-    const nextY = dragRef.current.offsetY + (point.clientY - dragRef.current.startY)
-    setOffset({
-      x: clamp(nextX, minOffsetX, 0),
-      y: clamp(nextY, minOffsetY, 0),
-    })
+    const nextX = dragRef.current.frameX + (point.clientX - dragRef.current.startX)
+    const nextY = dragRef.current.frameY + (point.clientY - dragRef.current.startY)
+    setFrame((current) => ({
+      ...current,
+      x: clamp(nextX, 0, Math.max(0, displayWidth - current.width)),
+      y: clamp(nextY, 0, Math.max(0, displayHeight - current.height)),
+    }))
   }
 
   function handlePointerUp() {
@@ -265,14 +275,13 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   }
 
   async function handleConfirm() {
-    if (!request?.file || !naturalSize.width || !naturalSize.height) return
+    if (!request?.file || !naturalSize.width || !naturalSize.height || !frame.width || !frame.height || !displayScale) return
     setSubmitting(true)
     try {
-      const sourceScale = baseScale * zoom
-      const sourceX = Math.max(0, Math.round((-offset.x / sourceScale) * 1000) / 1000)
-      const sourceY = Math.max(0, Math.round((-offset.y / sourceScale) * 1000) / 1000)
-      const sourceWidth = Math.min(naturalSize.width, Math.round((frameWidth / sourceScale) * 1000) / 1000)
-      const sourceHeight = Math.min(naturalSize.height, Math.round((frameHeight / sourceScale) * 1000) / 1000)
+      const sourceX = Math.max(0, Math.round((frame.x / displayScale) * 1000) / 1000)
+      const sourceY = Math.max(0, Math.round((frame.y / displayScale) * 1000) / 1000)
+      const sourceWidth = Math.min(naturalSize.width, Math.round((frame.width / displayScale) * 1000) / 1000)
+      const sourceHeight = Math.min(naturalSize.height, Math.round((frame.height / displayScale) * 1000) / 1000)
 
       const maxOutputSide = request.config?.maxOutputSide || 1800
       const scale = Math.min(1, maxOutputSide / Math.max(sourceWidth, sourceHeight))
@@ -369,18 +378,14 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
               <div
                 style={{
                   position: 'relative',
-                  width: frameWidth,
-                  height: frameHeight,
+                  width: displayWidth || Math.min(maxStageWidth, 520),
+                  height: displayHeight || Math.min(maxStageHeight, 420),
                   maxWidth: '100%',
                   borderRadius: 18,
                   overflow: 'hidden',
-                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.38)',
                   background: '#0a0a0a',
                   touchAction: 'none',
-                  cursor: naturalSize.width ? 'grab' : 'default',
                 }}
-                onMouseDown={handlePointerDown}
-                onTouchStart={handlePointerDown}
               >
                 <img
                   ref={imageRef}
@@ -389,31 +394,43 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   onLoad={onImageLoad}
                   draggable={false}
                   style={{
-                    position: 'absolute',
-                    left: offset.x,
-                    top: offset.y,
-                    width: displayWidth || 'auto',
-                    height: displayHeight || 'auto',
-                    maxWidth: 'none',
+                    width: displayWidth || '100%',
+                    height: displayHeight || '100%',
+                    objectFit: 'contain',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     pointerEvents: 'none',
+                    display: 'block',
                   }}
                 />
+                {frame.width > 0 && frame.height > 0 && (
+                  <>
+                    <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: frame.y, background: 'rgba(0,0,0,0.48)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, displayHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.48)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: 0, top: frame.y, width: frame.x, height: frame.height, background: 'rgba(0,0,0,0.48)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, displayWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.48)', pointerEvents: 'none' }} />
+                  </>
+                )}
                 <div
                   style={{
                     position: 'absolute',
-                    inset: 0,
+                    left: frame.x,
+                    top: frame.y,
+                    width: frame.width,
+                    height: frame.height,
                     border: '2px solid rgba(255,255,255,0.9)',
                     borderRadius: 18,
                     boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)',
-                    pointerEvents: 'none',
+                    pointerEvents: frame.width > 0 ? 'auto' : 'none',
+                    cursor: 'move',
                   }}
+                  onMouseDown={handlePointerDown}
+                  onTouchStart={handlePointerDown}
                 />
               </div>
             </div>
             <div style={{ color: '#9f9f9f', fontSize: 13 }}>
-              Drag the image to reposition it. Use zoom if important details are too close to the edges.
+              Move only the frame. The image stays exactly as you uploaded it.
             </div>
           </div>
 
@@ -435,21 +452,6 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                 This frame matches how the image will be cropped on the site.
               </div>
             </div>
-
-            <label style={{ display: 'grid', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
-                <span>Zoom</span>
-                <span>{zoom.toFixed(2)}x</span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="3"
-                step="0.01"
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-              />
-            </label>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button

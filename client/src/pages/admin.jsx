@@ -6,8 +6,20 @@ const UPLOAD_TIMEOUT_MS = 60_000
 const SAVE_TIMEOUT_MS = 30_000
 const WORK_IMAGE_MAX_BYTES = 15 * 1024 * 1024
 const WORK_IMAGE_TARGET_BYTES = Math.floor(14.5 * 1024 * 1024)
+const CATEGORY_IMAGE_MAX_BYTES = 2 * 1024 * 1024
+const CATEGORY_IMAGE_TARGET_BYTES = Math.floor(1.8 * 1024 * 1024)
 const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function createCropCancelError() {
+  const error = new Error('Image crop cancelled.')
+  error.code = 'CROP_CANCELLED'
+  return error
+}
 
 function fileNameWithExtension(name = '', fallbackExt = 'jpg') {
   const base = String(name || 'image').replace(/\.[^.]+$/, '').trim() || 'image'
@@ -52,6 +64,15 @@ function canvasToBlob(canvas, type, quality) {
       }
       resolve(blob)
     }, type, quality)
+  })
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Failed to read image file.'))
+    reader.readAsDataURL(file)
   })
 }
 
@@ -121,6 +142,354 @@ async function optimizeLargeImage(file, { maxBytes = WORK_IMAGE_MAX_BYTES, targe
   return { file, optimized: false }
 }
 
+function useImageCropper() {
+  const [state, setState] = useState(null)
+
+  function requestCrop(file, config) {
+    if (!file) return Promise.resolve(null)
+
+    return new Promise(async (resolve, reject) => {
+      try {
+        const src = await readFileAsDataUrl(file)
+        setState({
+          open: true,
+          file,
+          src,
+          config,
+          resolve,
+          reject,
+        })
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
+  function closeWith(resultType, payload) {
+    setState((current) => {
+      if (!current) return current
+      if (resultType === 'resolve') current.resolve(payload)
+      if (resultType === 'reject') current.reject(payload)
+      return null
+    })
+  }
+
+  return {
+    cropRequest: state,
+    requestCrop,
+    resolveCrop: (file) => closeWith('resolve', file),
+    rejectCrop: (error) => closeWith('reject', error || createCropCancelError()),
+  }
+}
+
+function ImageCropModal({ request, onConfirm, onCancel }) {
+  const imageRef = useRef(null)
+  const dragRef = useRef(null)
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const [submitting, setSubmitting] = useState(false)
+
+  const aspect = request?.config?.aspect || 1
+  const title = request?.config?.title || 'Adjust image'
+  const helper = request?.config?.helper || 'Move and zoom the image to match how it will appear on the site.'
+
+  const maxFrameWidth = typeof window !== 'undefined' ? Math.min(window.innerWidth - 56, 520) : 520
+  const maxFrameHeight = typeof window !== 'undefined' ? Math.min(window.innerHeight - 250, 560) : 560
+  let frameWidth = aspect >= 1 ? maxFrameWidth : maxFrameHeight * aspect
+  let frameHeight = frameWidth / aspect
+  if (frameHeight > maxFrameHeight) {
+    frameHeight = maxFrameHeight
+    frameWidth = frameHeight * aspect
+  }
+
+  const baseScale = naturalSize.width && naturalSize.height
+    ? Math.max(frameWidth / naturalSize.width, frameHeight / naturalSize.height)
+    : 1
+
+  const displayWidth = naturalSize.width * baseScale * zoom
+  const displayHeight = naturalSize.height * baseScale * zoom
+  const minOffsetX = Math.min(0, frameWidth - displayWidth)
+  const minOffsetY = Math.min(0, frameHeight - displayHeight)
+
+  useEffect(() => {
+    setZoom(1)
+    setOffset({ x: 0, y: 0 })
+    setSubmitting(false)
+    setNaturalSize({ width: 0, height: 0 })
+  }, [request?.src])
+
+  useEffect(() => {
+    if (!naturalSize.width || !naturalSize.height) return
+    const centeredX = (frameWidth - displayWidth) / 2
+    const centeredY = (frameHeight - displayHeight) / 2
+    setOffset((current) => ({
+      x: clamp(current.x || centeredX, minOffsetX, 0),
+      y: clamp(current.y || centeredY, minOffsetY, 0),
+    }))
+  }, [naturalSize.width, naturalSize.height, frameWidth, frameHeight, displayWidth, displayHeight, minOffsetX, minOffsetY])
+
+  function onImageLoad(e) {
+    const target = e.currentTarget
+    setNaturalSize({
+      width: target.naturalWidth || 0,
+      height: target.naturalHeight || 0,
+    })
+  }
+
+  function handlePointerDown(e) {
+    if (!naturalSize.width || !naturalSize.height) return
+    const point = e.touches?.[0] || e
+    dragRef.current = {
+      startX: point.clientX,
+      startY: point.clientY,
+      offsetX: offset.x,
+      offsetY: offset.y,
+    }
+  }
+
+  function handlePointerMove(e) {
+    if (!dragRef.current) return
+    e.preventDefault?.()
+    const point = e.touches?.[0] || e
+    const nextX = dragRef.current.offsetX + (point.clientX - dragRef.current.startX)
+    const nextY = dragRef.current.offsetY + (point.clientY - dragRef.current.startY)
+    setOffset({
+      x: clamp(nextX, minOffsetX, 0),
+      y: clamp(nextY, minOffsetY, 0),
+    })
+  }
+
+  function handlePointerUp() {
+    dragRef.current = null
+  }
+
+  async function handleConfirm() {
+    if (!request?.file || !naturalSize.width || !naturalSize.height) return
+    setSubmitting(true)
+    try {
+      const sourceScale = baseScale * zoom
+      const sourceX = Math.max(0, Math.round((-offset.x / sourceScale) * 1000) / 1000)
+      const sourceY = Math.max(0, Math.round((-offset.y / sourceScale) * 1000) / 1000)
+      const sourceWidth = Math.min(naturalSize.width, Math.round((frameWidth / sourceScale) * 1000) / 1000)
+      const sourceHeight = Math.min(naturalSize.height, Math.round((frameHeight / sourceScale) * 1000) / 1000)
+
+      const maxOutputSide = request.config?.maxOutputSide || 1800
+      const scale = Math.min(1, maxOutputSide / Math.max(sourceWidth, sourceHeight))
+      const outputWidth = Math.max(1, Math.round(sourceWidth * scale))
+      const outputHeight = Math.max(1, Math.round(sourceHeight * scale))
+
+      const canvas = document.createElement('canvas')
+      canvas.width = outputWidth
+      canvas.height = outputHeight
+      const context = canvas.getContext('2d', { alpha: false })
+      if (!context) throw new Error('Image crop is not supported in this browser.')
+
+      const image = imageRef.current
+      context.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        outputWidth,
+        outputHeight
+      )
+
+      const outputType = request.config?.outputType || getCanvasOutputType(request.file)
+      const blob = await canvasToBlob(canvas, outputType, 0.94)
+      const croppedFile = new File(
+        [blob],
+        fileNameWithExtension(request.file.name, extensionForMime(outputType)),
+        { type: outputType, lastModified: Date.now() }
+      )
+      onConfirm(croppedFile)
+    } catch (error) {
+      onCancel(error)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (!request?.open) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 999999,
+        background: 'rgba(0,0,0,0.76)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+      onMouseMove={handlePointerMove}
+      onMouseUp={handlePointerUp}
+      onMouseLeave={handlePointerUp}
+      onTouchMove={handlePointerMove}
+      onTouchEnd={handlePointerUp}
+    >
+      <div
+        style={{
+          width: 'min(920px, 100%)',
+          maxHeight: 'min(92vh, 860px)',
+          overflow: 'auto',
+          borderRadius: 18,
+          border: '1px solid rgba(255,255,255,0.12)',
+          background: '#121212',
+          boxShadow: '0 30px 90px rgba(0,0,0,0.45)',
+          padding: 20,
+          display: 'grid',
+          gap: 18,
+        }}
+      >
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ fontSize: 22, fontWeight: 650 }}>{title}</div>
+          <div style={{ color: '#bdbdbd', fontSize: 14, lineHeight: 1.5 }}>{helper}</div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(240px, 280px)', gap: 18 }} className="admin-crop-layout">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div
+              style={{
+                width: '100%',
+                minHeight: 280,
+                borderRadius: 18,
+                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'linear-gradient(180deg, rgba(18,18,18,0.96) 0%, rgba(10,10,10,0.96) 100%)',
+                display: 'grid',
+                placeItems: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  width: frameWidth,
+                  height: frameHeight,
+                  maxWidth: '100%',
+                  borderRadius: 18,
+                  overflow: 'hidden',
+                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.38)',
+                  background: '#0a0a0a',
+                  touchAction: 'none',
+                  cursor: naturalSize.width ? 'grab' : 'default',
+                }}
+                onMouseDown={handlePointerDown}
+                onTouchStart={handlePointerDown}
+              >
+                <img
+                  ref={imageRef}
+                  src={request.src}
+                  alt="Crop preview"
+                  onLoad={onImageLoad}
+                  draggable={false}
+                  style={{
+                    position: 'absolute',
+                    left: offset.x,
+                    top: offset.y,
+                    width: displayWidth || 'auto',
+                    height: displayHeight || 'auto',
+                    maxWidth: 'none',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    border: '2px solid rgba(255,255,255,0.9)',
+                    borderRadius: 18,
+                    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </div>
+            </div>
+            <div style={{ color: '#9f9f9f', fontSize: 13 }}>
+              Drag the image to reposition it. Use zoom if important details are too close to the edges.
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+            <div
+              style={{
+                borderRadius: 16,
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.03)',
+                padding: 16,
+                display: 'grid',
+                gap: 12,
+              }}
+            >
+              <div style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: 1.1, color: '#c8902a' }}>
+                Visible area
+              </div>
+              <div style={{ color: '#d7d7d7', fontSize: 14, lineHeight: 1.5 }}>
+                This frame matches how the image will be cropped on the site.
+              </div>
+            </div>
+
+            <label style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
+                <span>Zoom</span>
+                <span>{zoom.toFixed(2)}x</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="3"
+                step="0.01"
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+              />
+            </label>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => onCancel(createCropCancelError())}
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: 12,
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(10,10,10,0.42)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: 12,
+                  border: '1px solid rgba(200,144,42,0.35)',
+                  background: 'rgba(200,144,42,0.12)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+                disabled={submitting}
+              >
+                {submitting ? 'Applying…' : 'Use This Crop'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function openFilePicker(inputRef) {
   const el = inputRef?.current
   if (!el) return
@@ -179,7 +548,9 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid, prepareFile, 
         onPrepared?.(prepared)
       }
     } catch (error) {
-      onInvalid?.(error?.message || 'Failed to process file.')
+      if (error?.code !== 'CROP_CANCELLED') {
+        onInvalid?.(error?.message || 'Failed to process file.')
+      }
       setIsProcessing(false)
       return
     }
@@ -380,6 +751,7 @@ function Icon({ name }) {
 
 export default function Admin() {
   const qc = useQueryClient()
+  const { cropRequest, requestCrop, resolveCrop, rejectCrop } = useImageCropper()
   const [toast, setToast] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [deletingCatId, setDeletingCatId] = useState(null)
@@ -445,6 +817,36 @@ export default function Admin() {
       },
     }
   }, [])
+
+  async function cropAndOptimizeWorkImage(file, label = 'image') {
+    if (!file) return { file, optimized: false }
+    const croppedFile = await requestCrop(file, {
+      aspect: 4 / 5,
+      title: `Adjust ${label}`,
+      helper: 'This frame matches the Before / After image area shown on the site.',
+      maxOutputSide: 2000,
+      outputType: getCanvasOutputType(file),
+    })
+    return optimizeLargeImage(croppedFile, {
+      maxBytes: WORK_IMAGE_MAX_BYTES,
+      targetBytes: WORK_IMAGE_TARGET_BYTES,
+    })
+  }
+
+  async function cropAndOptimizeCategoryImage(file) {
+    if (!file) return { file, optimized: false }
+    const croppedFile = await requestCrop(file, {
+      aspect: 1,
+      title: 'Adjust category image',
+      helper: 'This square frame matches how category images are cropped on the site.',
+      maxOutputSide: 1600,
+      outputType: getCanvasOutputType(file),
+    })
+    return optimizeLargeImage(croppedFile, {
+      maxBytes: CATEGORY_IMAGE_MAX_BYTES,
+      targetBytes: CATEGORY_IMAGE_TARGET_BYTES,
+    })
+  }
 
   // Categories
   const categoriesQuery = useQuery({
@@ -553,10 +955,17 @@ export default function Admin() {
     onChange: onCategoryImageChange,
     clear: clearCategoryImage,
     selectFile: selectCategoryImageFile,
+    isProcessing: isCategoryImageProcessing,
   } = useImageFilePicker({
     onFileSelected: setCategoryImageFile,
     validate: validateCategoryImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
+    prepareFile: cropAndOptimizeCategoryImage,
+    onPrepared: (result) => {
+      if (result?.optimized) {
+        setToast({ type: 'success', text: 'Category image was optimized automatically.' })
+      }
+    },
   })
 
   const [editCategoryImageFile, setEditCategoryImageFile] = useState(null)
@@ -567,10 +976,17 @@ export default function Admin() {
     open: openEditCategoryPicker,
     onChange: onEditCategoryImageChange,
     clear: clearEditCategoryImage,
+    isProcessing: isEditCategoryImageProcessing,
   } = useImageFilePicker({
     onFileSelected: setEditCategoryImageFile,
     validate: validateCategoryImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
+    prepareFile: cropAndOptimizeCategoryImage,
+    onPrepared: (result) => {
+      if (result?.optimized) {
+        setToast({ type: 'success', text: 'Category image was optimized automatically.' })
+      }
+    },
   })
 
   const {
@@ -586,7 +1002,7 @@ export default function Admin() {
     onFileSelected: (file) => setNewItem((s) => ({ ...s, before: file })),
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: (file) => optimizeLargeImage(file),
+    prepareFile: (file) => cropAndOptimizeWorkImage(file, 'Before photo'),
     onPrepared: (result) => {
       if (result?.optimized) {
         setToast({ type: 'success', text: 'Large Before photo was optimized automatically.' })
@@ -607,7 +1023,7 @@ export default function Admin() {
     onFileSelected: (file) => setNewItem((s) => ({ ...s, after: file })),
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: (file) => optimizeLargeImage(file),
+    prepareFile: (file) => cropAndOptimizeWorkImage(file, 'After photo'),
     onPrepared: (result) => {
       if (result?.optimized) {
         setToast({ type: 'success', text: 'Large After photo was optimized automatically.' })
@@ -628,7 +1044,7 @@ export default function Admin() {
     onFileSelected: setEditWorkBeforeFile,
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: (file) => optimizeLargeImage(file),
+    prepareFile: (file) => cropAndOptimizeWorkImage(file, 'Before photo'),
     onPrepared: (result) => {
       if (result?.optimized) {
         setToast({ type: 'success', text: 'Large Before photo was optimized automatically.' })
@@ -649,7 +1065,7 @@ export default function Admin() {
     onFileSelected: setEditWorkAfterFile,
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: (file) => optimizeLargeImage(file),
+    prepareFile: (file) => cropAndOptimizeWorkImage(file, 'After photo'),
     onPrepared: (result) => {
       if (result?.optimized) {
         setToast({ type: 'success', text: 'Large After photo was optimized automatically.' })
@@ -661,7 +1077,7 @@ export default function Admin() {
     if (!file) return { ok: true }
     const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
     const allowedExt = /\.(jpe?g|png|webp)$/i
-    if (file.size > 2 * 1024 * 1024) return { ok: false, message: 'Category image must be <= 2MB.' }
+    if (file.size > CATEGORY_IMAGE_MAX_BYTES) return { ok: false, message: 'Category image is still too large after optimization. Please choose a slightly smaller file.' }
     if (file.type && !allowedTypes.has(file.type)) return { ok: false, message: 'Only .jpg, .png, and .webp are allowed.' }
     if (!file.type && !allowedExt.test(file.name || '')) return { ok: false, message: 'Only .jpg, .png, and .webp are allowed.' }
     return { ok: true }
@@ -869,6 +1285,7 @@ export default function Admin() {
         .admin-work-desc { color: #A1A1A1; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .admin-img-change { position: absolute; top: 10px; right: 10px; z-index: 9999; width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; user-select: none; -webkit-user-select: none; touch-action: manipulation; pointer-events: auto !important; }
         .admin-img-change:hover { background: rgba(0,0,0,0.72); }
+        .admin-crop-layout { grid-template-columns: minmax(0, 1fr) minmax(240px, 280px); }
         @media (max-width: 900px) {
           .admin-shell { grid-template-columns: 1fr; }
           .admin-topbar { display: flex; }
@@ -877,6 +1294,7 @@ export default function Admin() {
           .admin-overlay { display: block; }
           .admin-main { padding: 18px 14px; }
           .admin-portfolio-grid { grid-template-columns: 1fr; }
+          .admin-crop-layout { grid-template-columns: 1fr; }
         }
         @media (max-width: 820px) {
           .admin-grid-2 { grid-template-columns: 1fr; }
@@ -1469,9 +1887,9 @@ export default function Admin() {
                                   if (editCategoryImageFile) fd.append('image', editCategoryImageFile)
                                   updateCategoryMutation.mutate({ id: cat.id, data: fd })
                                 }}
-                                disabled={updateCategoryMutation.isPending}
+                                disabled={updateCategoryMutation.isPending || isEditCategoryImageProcessing}
                               >
-                                {cat.id === savingCatId ? 'Saving…' : 'Save'}
+                                {isEditCategoryImageProcessing ? 'Optimizing…' : cat.id === savingCatId ? 'Saving…' : 'Save'}
                               </button>
                               <button type="button" style={styles.buttonSubtle} onClick={cancelEditCategory}>
                                 Cancel
@@ -1577,7 +1995,7 @@ export default function Admin() {
                             <Icon name="image" />
                           </div>
                           <div className="admin-upload-title">Click to upload category image</div>
-                          <div className="admin-upload-sub">JPG, PNG, or WEBP • max 2MB • square recommended</div>
+                          <div className="admin-upload-sub">JPG, PNG, or WEBP • files over 2MB are auto-optimized • square crop</div>
                         </div>
                       )}
 
@@ -1586,7 +2004,7 @@ export default function Admin() {
                           <div className="admin-upload-preview">
                             <img key={`preview:${categoryImagePreviewUrl}`} src={categoryImagePreviewUrl} alt="Category preview" />
                             <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
-                            <div className="admin-upload-chip">Click to change</div>
+                            <div className="admin-upload-chip">{isCategoryImageProcessing ? 'Optimizing…' : 'Click to change'}</div>
                           </div>
                           <div className="admin-upload-actions">
                             <button
@@ -1603,8 +2021,8 @@ export default function Admin() {
                     </label>
                   </Field>
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button type="submit" style={styles.button} disabled={createCategoryMutation.isPending}>
-                      {createCategoryMutation.isPending ? 'Saving…' : 'Add Category'}
+                    <button type="submit" style={styles.button} disabled={createCategoryMutation.isPending || isCategoryImageProcessing}>
+                      {isCategoryImageProcessing ? 'Optimizing…' : createCategoryMutation.isPending ? 'Saving…' : 'Add Category'}
                     </button>
                   </div>
                 </form>
@@ -1697,6 +2115,11 @@ export default function Admin() {
           </div>
         </main>
       </div>
+      <ImageCropModal
+        request={cropRequest}
+        onConfirm={resolveCrop}
+        onCancel={rejectCrop}
+      />
     </div>
   )
 }

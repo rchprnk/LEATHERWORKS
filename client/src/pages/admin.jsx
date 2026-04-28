@@ -200,8 +200,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     : 1
   const imageWidth = naturalSize.width ? Math.max(1, Math.round(naturalSize.width * mediaScale)) : 0
   const imageHeight = naturalSize.height ? Math.max(1, Math.round(naturalSize.height * mediaScale)) : 0
-  const imageLeft = Math.max(0, Math.round((stageWidth - imageWidth) / 2))
-  const imageTop = Math.max(0, Math.round((stageHeight - imageHeight) / 2))
+  const imageLeft = 0
+  const imageTop = 0
   const displayScale = mediaScale || 1
 
   useEffect(() => {
@@ -460,8 +460,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
               <div
                 style={{
                   position: 'relative',
-                  width: stageWidth,
-                  height: stageHeight,
+                  width: imageWidth || Math.min(stageWidth, 520),
+                  height: imageHeight || Math.min(stageHeight, 420),
                   borderRadius: 16,
                   overflow: 'hidden',
                   background: '#0a0a0a',
@@ -489,9 +489,9 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                 {frame.width > 0 && frame.height > 0 && (
                   <>
                     <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: frame.y, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, stageHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, imageHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
                     <div style={{ position: 'absolute', left: 0, top: frame.y, width: frame.x, height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, stageWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, imageWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
                   </>
                 )}
                 <div

@@ -224,10 +224,10 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     let nextHeight
 
     if (aspect >= 1) {
-      nextWidth = Math.min(displayWidth * 0.82, displayHeight * 0.82 * aspect)
+      nextWidth = Math.min(displayWidth * 0.88, displayHeight * 0.88 * aspect)
       nextHeight = nextWidth / aspect
     } else {
-      nextHeight = Math.min(displayHeight * 0.82, displayWidth * 0.82 / aspect)
+      nextHeight = Math.min(displayHeight * 0.88, displayWidth * 0.88 / aspect)
       nextWidth = nextHeight * aspect
     }
 
@@ -255,10 +255,30 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     e.preventDefault?.()
     const point = e.touches?.[0] || e
     dragRef.current = {
+      mode: 'move',
       startX: point.clientX,
       startY: point.clientY,
       frameX: frame.x,
       frameY: frame.y,
+      frameWidth: frame.width,
+      frameHeight: frame.height,
+    }
+  }
+
+  function handleResizeStart(e, corner) {
+    if (!displayWidth || !displayHeight || !frame.width || !frame.height) return
+    e.preventDefault?.()
+    e.stopPropagation?.()
+    const point = e.touches?.[0] || e
+    dragRef.current = {
+      mode: 'resize',
+      corner,
+      startX: point.clientX,
+      startY: point.clientY,
+      frameX: frame.x,
+      frameY: frame.y,
+      frameWidth: frame.width,
+      frameHeight: frame.height,
     }
   }
 
@@ -266,8 +286,51 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     if (!dragRef.current) return
     e.preventDefault?.()
     const point = e.touches?.[0] || e
-    const nextX = dragRef.current.frameX + (point.clientX - dragRef.current.startX)
-    const nextY = dragRef.current.frameY + (point.clientY - dragRef.current.startY)
+    const dx = point.clientX - dragRef.current.startX
+    const dy = point.clientY - dragRef.current.startY
+
+    if (dragRef.current.mode === 'resize') {
+      const minWidth = Math.max(90, Math.round(90 * aspect))
+      const maxWidth = Math.min(displayWidth, displayHeight * aspect)
+      let nextWidth = dragRef.current.frameWidth
+
+      if (dragRef.current.corner === 'br') {
+        nextWidth = dragRef.current.frameWidth + Math.max(dx, dy * aspect)
+      } else if (dragRef.current.corner === 'tr') {
+        nextWidth = dragRef.current.frameWidth + Math.max(dx, -dy * aspect)
+      } else if (dragRef.current.corner === 'bl') {
+        nextWidth = dragRef.current.frameWidth + Math.max(-dx, dy * aspect)
+      } else if (dragRef.current.corner === 'tl') {
+        nextWidth = dragRef.current.frameWidth + Math.max(-dx, -dy * aspect)
+      }
+
+      nextWidth = clamp(nextWidth, minWidth, maxWidth)
+      const nextHeight = nextWidth / aspect
+
+      let nextX = dragRef.current.frameX
+      let nextY = dragRef.current.frameY
+
+      if (dragRef.current.corner === 'tr' || dragRef.current.corner === 'tl') {
+        nextY = dragRef.current.frameY + (dragRef.current.frameHeight - nextHeight)
+      }
+      if (dragRef.current.corner === 'bl' || dragRef.current.corner === 'tl') {
+        nextX = dragRef.current.frameX + (dragRef.current.frameWidth - nextWidth)
+      }
+
+      nextX = clamp(nextX, 0, Math.max(0, displayWidth - nextWidth))
+      nextY = clamp(nextY, 0, Math.max(0, displayHeight - nextHeight))
+
+      setFrame({
+        x: nextX,
+        y: nextY,
+        width: nextWidth,
+        height: nextHeight,
+      })
+      return
+    }
+
+    const nextX = dragRef.current.frameX + dx
+    const nextY = dragRef.current.frameY + dy
     setFrame((current) => ({
       ...current,
       x: clamp(nextX, 0, Math.max(0, displayWidth - current.width)),
@@ -443,11 +506,33 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', padding: '6px 10px', borderRadius: 999, background: 'rgba(0,0,0,0.42)', color: '#fff', fontSize: 12, letterSpacing: 0.3 }}>
                     Drag frame
                   </div>
+                  {[
+                    { corner: 'tl', style: { left: -10, top: -10, cursor: 'nwse-resize' } },
+                    { corner: 'tr', style: { right: -10, top: -10, cursor: 'nesw-resize' } },
+                    { corner: 'bl', style: { left: -10, bottom: -10, cursor: 'nesw-resize' } },
+                    { corner: 'br', style: { right: -10, bottom: -10, cursor: 'nwse-resize' } },
+                  ].map((handle) => (
+                    <div
+                      key={handle.corner}
+                      style={{
+                        position: 'absolute',
+                        width: 24,
+                        height: 24,
+                        borderRadius: 999,
+                        border: '2px solid #fff',
+                        background: '#c8902a',
+                        boxShadow: '0 6px 18px rgba(0,0,0,0.28)',
+                        ...handle.style,
+                      }}
+                      onMouseDown={(e) => handleResizeStart(e, handle.corner)}
+                      onTouchStart={(e) => handleResizeStart(e, handle.corner)}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
             <div style={{ color: '#9f9f9f', fontSize: 13 }}>
-              Move only the frame. The image stays exactly as you uploaded it.
+              Move the frame or drag the corner dots to make it larger or smaller. The image stays exactly as you uploaded it.
             </div>
           </div>
 

@@ -186,6 +186,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   const imageRef = useRef(null)
   const dragRef = useRef(null)
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
+  const [renderSize, setRenderSize] = useState({ width: 0, height: 0 })
   const [frame, setFrame] = useState({ x: 0, y: 0, width: 0, height: 0 })
   const [submitting, setSubmitting] = useState(false)
 
@@ -193,20 +194,12 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   const title = request?.config?.title || 'Adjust image'
   const helper = request?.config?.helper || 'Move the crop frame to choose the exact visible area for the site.'
 
-  const maxStageWidth = typeof window !== 'undefined' ? Math.min(window.innerWidth - 80, 760) : 760
-  const maxStageHeight = typeof window !== 'undefined' ? Math.min(window.innerHeight - 270, 620) : 620
-
-  let displayWidth = 0
-  let displayHeight = 0
-  let displayScale = 1
-
-  if (naturalSize.width && naturalSize.height) {
-    displayScale = Math.min(maxStageWidth / naturalSize.width, maxStageHeight / naturalSize.height, 1)
-    displayWidth = Math.max(1, Math.round(naturalSize.width * displayScale))
-    displayHeight = Math.max(1, Math.round(naturalSize.height * displayScale))
-  }
+  const displayWidth = renderSize.width
+  const displayHeight = renderSize.height
+  const displayScale = naturalSize.width && displayWidth ? naturalSize.width / displayWidth : 1
 
   useEffect(() => {
+    setRenderSize({ width: 0, height: 0 })
     setFrame({ x: 0, y: 0, width: 0, height: 0 })
     setSubmitting(false)
     setNaturalSize({ width: 0, height: 0 })
@@ -239,9 +232,14 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
 
   function onImageLoad(e) {
     const target = e.currentTarget
+    const rect = target.getBoundingClientRect()
     setNaturalSize({
       width: target.naturalWidth || 0,
       height: target.naturalHeight || 0,
+    })
+    setRenderSize({
+      width: Math.round(rect.width || target.clientWidth || 0),
+      height: Math.round(rect.height || target.clientHeight || 0),
     })
   }
 
@@ -370,18 +368,19 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                 borderRadius: 18,
                 border: '1px solid rgba(255,255,255,0.1)',
                 background: 'linear-gradient(180deg, rgba(18,18,18,0.96) 0%, rgba(10,10,10,0.96) 100%)',
-                display: 'grid',
-                placeItems: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 overflow: 'hidden',
+                padding: 18,
               }}
             >
               <div
                 style={{
                   position: 'relative',
-                  width: displayWidth || Math.min(maxStageWidth, 520),
-                  height: displayHeight || Math.min(maxStageHeight, 420),
-                  maxWidth: '100%',
-                  borderRadius: 18,
+                  display: 'inline-block',
+                  lineHeight: 0,
+                  borderRadius: 16,
                   overflow: 'hidden',
                   background: '#0a0a0a',
                   touchAction: 'none',
@@ -394,21 +393,22 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   onLoad={onImageLoad}
                   draggable={false}
                   style={{
-                    width: displayWidth || '100%',
-                    height: displayHeight || '100%',
-                    objectFit: 'contain',
+                    display: 'block',
+                    width: 'auto',
+                    height: 'auto',
+                    maxWidth: 'min(760px, calc(100vw - 160px))',
+                    maxHeight: 'min(620px, calc(100vh - 320px))',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     pointerEvents: 'none',
-                    display: 'block',
                   }}
                 />
                 {frame.width > 0 && frame.height > 0 && (
                   <>
-                    <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: frame.y, background: 'rgba(0,0,0,0.48)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, displayHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.48)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: 0, top: frame.y, width: frame.x, height: frame.height, background: 'rgba(0,0,0,0.48)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, displayWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.48)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: frame.y, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, displayHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: 0, top: frame.y, width: frame.x, height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, displayWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
                   </>
                 )}
                 <div
@@ -418,15 +418,25 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                     top: frame.y,
                     width: frame.width,
                     height: frame.height,
-                    border: '2px solid rgba(255,255,255,0.9)',
-                    borderRadius: 18,
-                    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)',
+                    border: '2px solid rgba(255,255,255,0.96)',
+                    borderRadius: 14,
+                    boxShadow: '0 0 0 9999px rgba(0,0,0,0.01), inset 0 0 0 1px rgba(0,0,0,0.24)',
+                    background: 'rgba(255,255,255,0.05)',
                     pointerEvents: frame.width > 0 ? 'auto' : 'none',
                     cursor: 'move',
                   }}
                   onMouseDown={handlePointerDown}
                   onTouchStart={handlePointerDown}
-                />
+                >
+                  <div style={{ position: 'absolute', inset: 0, border: '1px dashed rgba(255,255,255,0.75)', borderRadius: 12 }} />
+                  <div style={{ position: 'absolute', left: 12, top: 12, width: 22, height: 22, borderTop: '3px solid #fff', borderLeft: '3px solid #fff', borderTopLeftRadius: 6 }} />
+                  <div style={{ position: 'absolute', right: 12, top: 12, width: 22, height: 22, borderTop: '3px solid #fff', borderRight: '3px solid #fff', borderTopRightRadius: 6 }} />
+                  <div style={{ position: 'absolute', left: 12, bottom: 12, width: 22, height: 22, borderBottom: '3px solid #fff', borderLeft: '3px solid #fff', borderBottomLeftRadius: 6 }} />
+                  <div style={{ position: 'absolute', right: 12, bottom: 12, width: 22, height: 22, borderBottom: '3px solid #fff', borderRight: '3px solid #fff', borderBottomRightRadius: 6 }} />
+                  <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', padding: '6px 10px', borderRadius: 999, background: 'rgba(0,0,0,0.42)', color: '#fff', fontSize: 12, letterSpacing: 0.3 }}>
+                    Drag frame
+                  </div>
+                </div>
               </div>
             </div>
             <div style={{ color: '#9f9f9f', fontSize: 13 }}>
@@ -480,7 +490,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   color: '#fff',
                   cursor: 'pointer',
                 }}
-                disabled={submitting}
+                disabled={submitting || !frame.width || !frame.height}
               >
                 {submitting ? 'Applying…' : 'Use This Crop'}
               </button>

@@ -1279,6 +1279,8 @@ export default function Admin() {
         /* Mobile-safe hidden file input (must not be display:none for iOS click() reliability) */
         .admin-file-input { position: absolute; opacity: 0; width: 1px; height: 1px; left: 0; top: 0; pointer-events: none; }
         .admin-upload-box { position: relative; border-radius: 14px; border: 1.2px dashed rgba(255,255,255,0.18); background: rgba(10,10,10,0.40); min-height: 220px; display: grid; place-items: center; overflow: hidden; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .admin-upload-box--work { aspect-ratio: 4 / 5; min-height: 320px; }
+        .admin-upload-box--category { aspect-ratio: 1 / 1; min-height: 220px; }
         @media (hover: hover) and (pointer: fine) {
           .admin-upload-box:hover { border-color: rgba(200,144,42,0.65); background: rgba(10,10,10,0.55); transform: translateY(-1px); }
         }
@@ -1649,7 +1651,7 @@ export default function Admin() {
                   <div className="admin-grid-2">
                     <Field label="Before Photo">
                       <label
-                        className="admin-upload-box"
+                        className="admin-upload-box admin-upload-box--work"
                         htmlFor={beforeInputId}
                         onDragOver={(e) => {
                           e.preventDefault()
@@ -1683,7 +1685,6 @@ export default function Admin() {
                           <>
                             <div className="admin-upload-preview">
                               <img key={`preview:${beforePreviewUrl}`} src={beforePreviewUrl} alt="Before preview" />
-                              <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
                               <div className="admin-media-pill">BEFORE</div>
                               <div className="admin-upload-chip">{isBeforeProcessing ? 'Optimizing…' : 'Click to change'}</div>
                             </div>
@@ -1704,7 +1705,7 @@ export default function Admin() {
 
                     <Field label="After Photo">
                       <label
-                        className="admin-upload-box"
+                        className="admin-upload-box admin-upload-box--work"
                         htmlFor={afterInputId}
                         onDragOver={(e) => {
                           e.preventDefault()
@@ -1738,7 +1739,6 @@ export default function Admin() {
                           <>
                             <div className="admin-upload-preview">
                               <img key={`preview:${afterPreviewUrl}`} src={afterPreviewUrl} alt="After preview" />
-                              <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
                               <div className="admin-media-pill after">AFTER</div>
                               <div className="admin-upload-chip">{isAfterProcessing ? 'Optimizing…' : 'Click to change'}</div>
                             </div>
@@ -1987,7 +1987,7 @@ export default function Admin() {
                   </div>
                   <Field label="Category Image">
                     <label
-                      className="admin-upload-box"
+                      className="admin-upload-box admin-upload-box--category"
                       htmlFor={categoryImageInputId}
                       onDragOver={(e) => {
                         e.preventDefault()
@@ -2022,7 +2022,6 @@ export default function Admin() {
                         <>
                           <div className="admin-upload-preview">
                             <img key={`preview:${categoryImagePreviewUrl}`} src={categoryImagePreviewUrl} alt="Category preview" />
-                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
                             <div className="admin-upload-chip">{isCategoryImageProcessing ? 'Optimizing…' : 'Click to change'}</div>
                           </div>
                           <div className="admin-upload-actions">

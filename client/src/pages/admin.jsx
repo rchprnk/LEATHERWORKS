@@ -193,13 +193,15 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   const aspect = request?.config?.aspect || 1
   const title = request?.config?.title || 'Adjust image'
   const helper = request?.config?.helper || 'Move the crop frame to choose the exact visible area for the site.'
-  const maxMediaWidth = typeof window !== 'undefined' ? Math.min(Math.max(window.innerWidth - (isMobile ? 48 : 96), 240), 760) : 760
-  const maxMediaHeight = typeof window !== 'undefined' ? Math.min(Math.max(window.innerHeight - 300, 240), 620) : 620
+  const stageWidth = typeof window !== 'undefined' ? Math.min(Math.max(window.innerWidth - (isMobile ? 48 : 96), 260), 760) : 760
+  const stageHeight = typeof window !== 'undefined' ? Math.min(Math.max(window.innerHeight - (isMobile ? 360 : 300), 260), 620) : 620
   const mediaScale = naturalSize.width && naturalSize.height
-    ? Math.min(maxMediaWidth / naturalSize.width, maxMediaHeight / naturalSize.height, 1)
+    ? Math.min(stageWidth / naturalSize.width, stageHeight / naturalSize.height, 1)
     : 1
-  const displayWidth = naturalSize.width ? Math.max(1, Math.round(naturalSize.width * mediaScale)) : 0
-  const displayHeight = naturalSize.height ? Math.max(1, Math.round(naturalSize.height * mediaScale)) : 0
+  const imageWidth = naturalSize.width ? Math.max(1, Math.round(naturalSize.width * mediaScale)) : 0
+  const imageHeight = naturalSize.height ? Math.max(1, Math.round(naturalSize.height * mediaScale)) : 0
+  const imageLeft = Math.max(0, Math.round((stageWidth - imageWidth) / 2))
+  const imageTop = Math.max(0, Math.round((stageHeight - imageHeight) / 2))
   const displayScale = mediaScale || 1
 
   useEffect(() => {
@@ -219,16 +221,16 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   }, [request?.open, request?.src])
 
   useEffect(() => {
-    if (!displayWidth || !displayHeight) return
+    if (!imageWidth || !imageHeight) return
 
     let nextWidth
     let nextHeight
 
     if (aspect >= 1) {
-      nextWidth = Math.min(displayWidth * 0.88, displayHeight * 0.88 * aspect)
+      nextWidth = Math.min(imageWidth * 0.88, imageHeight * 0.88 * aspect)
       nextHeight = nextWidth / aspect
     } else {
-      nextHeight = Math.min(displayHeight * 0.88, displayWidth * 0.88 / aspect)
+      nextHeight = Math.min(imageHeight * 0.88, imageWidth * 0.88 / aspect)
       nextWidth = nextHeight * aspect
     }
 
@@ -238,10 +240,10 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     setFrame({
       width: nextWidth,
       height: nextHeight,
-      x: Math.max(0, Math.round((displayWidth - nextWidth) / 2)),
-      y: Math.max(0, Math.round((displayHeight - nextHeight) / 2)),
+      x: imageLeft + Math.max(0, Math.round((imageWidth - nextWidth) / 2)),
+      y: imageTop + Math.max(0, Math.round((imageHeight - nextHeight) / 2)),
     })
-  }, [displayWidth, displayHeight, aspect])
+  }, [imageWidth, imageHeight, imageLeft, imageTop, aspect])
 
   function onImageLoad(e) {
     const target = e.currentTarget
@@ -252,7 +254,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   }
 
   function handlePointerDown(e) {
-    if (!displayWidth || !displayHeight || !frame.width || !frame.height) return
+    if (!imageWidth || !imageHeight || !frame.width || !frame.height) return
     e.preventDefault?.()
     const point = e.touches?.[0] || e
     dragRef.current = {
@@ -267,7 +269,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   }
 
   function handleResizeStart(e, corner) {
-    if (!displayWidth || !displayHeight || !frame.width || !frame.height) return
+    if (!imageWidth || !imageHeight || !frame.width || !frame.height) return
     e.preventDefault?.()
     e.stopPropagation?.()
     const point = e.touches?.[0] || e
@@ -293,14 +295,14 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     if (dragRef.current.mode === 'resize') {
       const minWidth = Math.max(90, Math.round(90 * aspect))
       const maxWidth = Math.min(
-        displayWidth,
-        displayHeight * aspect,
+        imageWidth,
+        imageHeight * aspect,
         dragRef.current.corner === 'tl' || dragRef.current.corner === 'bl'
-          ? dragRef.current.frameX + dragRef.current.frameWidth
-          : displayWidth - dragRef.current.frameX,
+          ? dragRef.current.frameX + dragRef.current.frameWidth - imageLeft
+          : imageLeft + imageWidth - dragRef.current.frameX,
         (dragRef.current.corner === 'tl' || dragRef.current.corner === 'tr'
-          ? dragRef.current.frameY + dragRef.current.frameHeight
-          : displayHeight - dragRef.current.frameY) * aspect
+          ? dragRef.current.frameY + dragRef.current.frameHeight - imageTop
+          : imageTop + imageHeight - dragRef.current.frameY) * aspect
       )
       let nextWidth = dragRef.current.frameWidth
 
@@ -327,8 +329,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
         nextX = dragRef.current.frameX + (dragRef.current.frameWidth - nextWidth)
       }
 
-      nextX = clamp(nextX, 0, Math.max(0, displayWidth - nextWidth))
-      nextY = clamp(nextY, 0, Math.max(0, displayHeight - nextHeight))
+      nextX = clamp(nextX, imageLeft, Math.max(imageLeft, imageLeft + imageWidth - nextWidth))
+      nextY = clamp(nextY, imageTop, Math.max(imageTop, imageTop + imageHeight - nextHeight))
 
       setFrame({
         x: nextX,
@@ -343,8 +345,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     const nextY = dragRef.current.frameY + dy
     setFrame((current) => ({
       ...current,
-      x: clamp(nextX, 0, Math.max(0, displayWidth - current.width)),
-      y: clamp(nextY, 0, Math.max(0, displayHeight - current.height)),
+      x: clamp(nextX, imageLeft, Math.max(imageLeft, imageLeft + imageWidth - current.width)),
+      y: clamp(nextY, imageTop, Math.max(imageTop, imageTop + imageHeight - current.height)),
     }))
   }
 
@@ -356,8 +358,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     if (!request?.file || !naturalSize.width || !naturalSize.height || !frame.width || !frame.height || !displayScale) return
     setSubmitting(true)
     try {
-      const sourceX = Math.max(0, Math.round((frame.x / displayScale) * 1000) / 1000)
-      const sourceY = Math.max(0, Math.round((frame.y / displayScale) * 1000) / 1000)
+      const sourceX = Math.max(0, Math.round(((frame.x - imageLeft) / displayScale) * 1000) / 1000)
+      const sourceY = Math.max(0, Math.round(((frame.y - imageTop) / displayScale) * 1000) / 1000)
       const sourceWidth = Math.min(naturalSize.width, Math.round((frame.width / displayScale) * 1000) / 1000)
       const sourceHeight = Math.min(naturalSize.height, Math.round((frame.height / displayScale) * 1000) / 1000)
 
@@ -458,8 +460,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
               <div
                 style={{
                   position: 'relative',
-                  display: 'inline-block',
-                  lineHeight: 0,
+                  width: stageWidth,
+                  height: stageHeight,
                   borderRadius: 16,
                   overflow: 'hidden',
                   background: '#0a0a0a',
@@ -473,11 +475,12 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   onLoad={onImageLoad}
                   draggable={false}
                   style={{
+                    position: 'absolute',
+                    left: imageLeft,
+                    top: imageTop,
                     display: 'block',
-                    width: displayWidth || 'auto',
-                    height: displayHeight || 'auto',
-                    maxWidth: 'none',
-                    maxHeight: 'none',
+                    width: imageWidth || 'auto',
+                    height: imageHeight || 'auto',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     pointerEvents: 'none',
@@ -486,9 +489,9 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                 {frame.width > 0 && frame.height > 0 && (
                   <>
                     <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: frame.y, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, displayHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, stageHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
                     <div style={{ position: 'absolute', left: 0, top: frame.y, width: frame.x, height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, displayWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, stageWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
                   </>
                 )}
                 <div

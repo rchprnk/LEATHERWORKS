@@ -193,15 +193,22 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
   const aspect = request?.config?.aspect || 1
   const title = request?.config?.title || 'Adjust image'
   const helper = request?.config?.helper || 'Move the crop frame to choose the exact visible area for the site.'
-  const stageWidth = typeof window !== 'undefined' ? Math.min(Math.max(window.innerWidth - (isMobile ? 48 : 96), 260), 760) : 760
-  const stageHeight = typeof window !== 'undefined' ? Math.min(Math.max(window.innerHeight - (isMobile ? 360 : 300), 260), 620) : 620
+  const maxStageWidth = typeof window !== 'undefined' ? Math.min(Math.max(window.innerWidth - (isMobile ? 48 : 96), 260), 760) : 760
+  const maxStageHeight = typeof window !== 'undefined' ? Math.min(Math.max(window.innerHeight - (isMobile ? 360 : 300), 260), 620) : 620
+  let stageWidth = maxStageWidth
+  let stageHeight = stageWidth / aspect
+  if (stageHeight > maxStageHeight) {
+    stageHeight = maxStageHeight
+    stageWidth = stageHeight * aspect
+  }
+
   const mediaScale = naturalSize.width && naturalSize.height
     ? Math.min(stageWidth / naturalSize.width, stageHeight / naturalSize.height, 1)
     : 1
   const imageWidth = naturalSize.width ? Math.max(1, Math.round(naturalSize.width * mediaScale)) : 0
   const imageHeight = naturalSize.height ? Math.max(1, Math.round(naturalSize.height * mediaScale)) : 0
-  const imageLeft = 0
-  const imageTop = 0
+  const imageLeft = Math.max(0, Math.round((stageWidth - imageWidth) / 2))
+  const imageTop = Math.max(0, Math.round((stageHeight - imageHeight) / 2))
   const displayScale = mediaScale || 1
 
   useEffect(() => {
@@ -460,8 +467,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
               <div
                 style={{
                   position: 'relative',
-                  width: imageWidth || Math.min(stageWidth, 520),
-                  height: imageHeight || Math.min(stageHeight, 420),
+                  width: stageWidth || Math.min(maxStageWidth, 520),
+                  height: stageHeight || Math.min(maxStageHeight, 420),
                   borderRadius: 16,
                   overflow: 'hidden',
                   background: '#0a0a0a',
@@ -489,9 +496,9 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                 {frame.width > 0 && frame.height > 0 && (
                   <>
                     <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: frame.y, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, imageHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: 0, top: frame.y + frame.height, width: '100%', height: Math.max(0, stageHeight - frame.y - frame.height), background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
                     <div style={{ position: 'absolute', left: 0, top: frame.y, width: frame.x, height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, imageWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', left: frame.x + frame.width, top: frame.y, width: Math.max(0, stageWidth - frame.x - frame.width), height: frame.height, background: 'rgba(0,0,0,0.56)', pointerEvents: 'none' }} />
                   </>
                 )}
                 <div

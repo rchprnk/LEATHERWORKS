@@ -4,6 +4,122 @@ import api from '../services/api'
 
 const UPLOAD_TIMEOUT_MS = 60_000
 const SAVE_TIMEOUT_MS = 30_000
+const WORK_IMAGE_MAX_BYTES = 15 * 1024 * 1024
+const WORK_IMAGE_TARGET_BYTES = Math.floor(14.5 * 1024 * 1024)
+const LARGE_IMAGE_DIMENSION_LIMIT = 3200
+const LARGE_IMAGE_MIN_DIMENSION = 1600
+
+function fileNameWithExtension(name = '', fallbackExt = 'jpg') {
+  const base = String(name || 'image').replace(/\.[^.]+$/, '').trim() || 'image'
+  return `${base}.${fallbackExt}`
+}
+
+function getCanvasOutputType(file) {
+  const type = String(file?.type || '').toLowerCase()
+  if (type === 'image/png') return 'image/webp'
+  if (type === 'image/webp') return 'image/webp'
+  return 'image/jpeg'
+}
+
+function extensionForMime(type) {
+  if (type === 'image/png') return 'png'
+  if (type === 'image/webp') return 'webp'
+  return 'jpg'
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve(img)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to read image file.'))
+    }
+    img.src = url
+  })
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Failed to optimize image.'))
+        return
+      }
+      resolve(blob)
+    }, type, quality)
+  })
+}
+
+async function optimizeLargeImage(file, { maxBytes = WORK_IMAGE_MAX_BYTES, targetBytes = WORK_IMAGE_TARGET_BYTES } = {}) {
+  if (!file || file.size <= maxBytes) {
+    return { file, optimized: false }
+  }
+
+  const image = await loadImageFromFile(file)
+  const outputType = getCanvasOutputType(file)
+  const originalWidth = image.naturalWidth || image.width
+  const originalHeight = image.naturalHeight || image.height
+  const longestSide = Math.max(originalWidth, originalHeight)
+  const initialScale = longestSide > LARGE_IMAGE_DIMENSION_LIMIT
+    ? LARGE_IMAGE_DIMENSION_LIMIT / longestSide
+    : 1
+
+  let width = Math.max(1, Math.round(originalWidth * initialScale))
+  let height = Math.max(1, Math.round(originalHeight * initialScale))
+
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d', { alpha: outputType === 'image/png' })
+
+  if (!context) {
+    throw new Error('Image optimization is not supported in this browser.')
+  }
+
+  const qualitySteps = outputType === 'image/png'
+    ? [undefined]
+    : [0.94, 0.9, 0.86, 0.82, 0.78, 0.74, 0.7]
+
+  const minLongestSide = Math.min(LARGE_IMAGE_MIN_DIMENSION, longestSide)
+  let candidate = null
+
+  while (Math.max(width, height) >= minLongestSide) {
+    canvas.width = width
+    canvas.height = height
+    context.clearRect(0, 0, width, height)
+    context.drawImage(image, 0, 0, width, height)
+
+    for (const quality of qualitySteps) {
+      const blob = await canvasToBlob(canvas, outputType, quality)
+      candidate = blob
+      if (blob.size <= targetBytes) {
+        const nextFile = new File(
+          [blob],
+          fileNameWithExtension(file.name, extensionForMime(outputType)),
+          { type: outputType, lastModified: Date.now() }
+        )
+        return { file: nextFile, optimized: true }
+      }
+    }
+
+    width = Math.max(1, Math.round(width * 0.88))
+    height = Math.max(1, Math.round(height * 0.88))
+  }
+
+  if (candidate && candidate.size < file.size) {
+    const nextFile = new File(
+      [candidate],
+      fileNameWithExtension(file.name, extensionForMime(outputType)),
+      { type: outputType, lastModified: Date.now() }
+    )
+    return { file: nextFile, optimized: true }
+  }
+
+  return { file, optimized: false }
+}
 
 function openFilePicker(inputRef) {
   const el = inputRef?.current
@@ -24,11 +140,12 @@ function finalizeFileSelection() {
   }
 }
 
-function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
+function useImageFilePicker({ onFileSelected, validate, onInvalid, prepareFile, onPrepared } = {}) {
   const inputId = useId()
   const inputRef = useRef(null)
   const objectUrlRef = useRef(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -51,14 +168,32 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
     setPreviewUrl(url)
   }
 
-  function selectFile(file) {
-    const v = validate ? validate(file) : { ok: true }
-    if (!v.ok) {
-      onInvalid?.(v.message || 'Invalid file.')
+  async function selectFile(file) {
+    let nextFile = file || null
+
+    try {
+      if (nextFile && prepareFile) {
+        setIsProcessing(true)
+        const prepared = await prepareFile(nextFile)
+        nextFile = prepared?.file || nextFile
+        onPrepared?.(prepared)
+      }
+    } catch (error) {
+      onInvalid?.(error?.message || 'Failed to process file.')
+      setIsProcessing(false)
       return
     }
-    onFileSelected?.(file || null)
-    setPreviewFromFile(file || null)
+
+    const v = validate ? validate(nextFile) : { ok: true }
+    if (!v.ok) {
+      onInvalid?.(v.message || 'Invalid file.')
+      setIsProcessing(false)
+      return
+    }
+
+    onFileSelected?.(nextFile || null)
+    setPreviewFromFile(nextFile || null)
+    setIsProcessing(false)
   }
 
   function open(e) {
@@ -67,7 +202,7 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
     openFilePicker(inputRef)
   }
 
-  function onChange(e) {
+  async function onChange(e) {
     e?.preventDefault?.()
     const files = e?.target?.files
     if (!files || files.length === 0) {
@@ -79,7 +214,7 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
       return
     }
     const file = files[0] || null
-    selectFile(file)
+    await selectFile(file)
     try {
       e.target.value = null
     } catch {
@@ -91,6 +226,7 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
   function clear(e) {
     e?.preventDefault?.()
     e?.stopPropagation?.()
+    setIsProcessing(false)
     selectFile(null)
     try {
       if (inputRef.current) inputRef.current.value = ''
@@ -99,7 +235,7 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid } = {}) {
     }
   }
 
-  return { inputId, inputRef, previewUrl, open, onChange, clear, selectFile, setPreviewFromFile }
+  return { inputId, inputRef, previewUrl, open, onChange, clear, selectFile, setPreviewFromFile, isProcessing }
 }
 
 async function fetchPortfolio() {
@@ -445,10 +581,17 @@ export default function Admin() {
     onChange: onBeforeChange,
     selectFile: selectBeforeFile,
     clear: clearBeforeFile,
+    isProcessing: isBeforeProcessing,
   } = useImageFilePicker({
     onFileSelected: (file) => setNewItem((s) => ({ ...s, before: file })),
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
+    prepareFile: (file) => optimizeLargeImage(file),
+    onPrepared: (result) => {
+      if (result?.optimized) {
+        setToast({ type: 'success', text: 'Large Before photo was optimized automatically.' })
+      }
+    },
   })
 
   const {
@@ -459,10 +602,17 @@ export default function Admin() {
     onChange: onAfterChange,
     selectFile: selectAfterFile,
     clear: clearAfterFile,
+    isProcessing: isAfterProcessing,
   } = useImageFilePicker({
     onFileSelected: (file) => setNewItem((s) => ({ ...s, after: file })),
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
+    prepareFile: (file) => optimizeLargeImage(file),
+    onPrepared: (result) => {
+      if (result?.optimized) {
+        setToast({ type: 'success', text: 'Large After photo was optimized automatically.' })
+      }
+    },
   })
 
   const [editWorkBeforeFile, setEditWorkBeforeFile] = useState(null)
@@ -473,10 +623,17 @@ export default function Admin() {
     open: openEditWorkBeforePicker,
     onChange: onEditWorkBeforeChange,
     clear: clearEditWorkBeforeFile,
+    isProcessing: isEditBeforeProcessing,
   } = useImageFilePicker({
     onFileSelected: setEditWorkBeforeFile,
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
+    prepareFile: (file) => optimizeLargeImage(file),
+    onPrepared: (result) => {
+      if (result?.optimized) {
+        setToast({ type: 'success', text: 'Large Before photo was optimized automatically.' })
+      }
+    },
   })
 
   const [editWorkAfterFile, setEditWorkAfterFile] = useState(null)
@@ -487,10 +644,17 @@ export default function Admin() {
     open: openEditWorkAfterPicker,
     onChange: onEditWorkAfterChange,
     clear: clearEditWorkAfterFile,
+    isProcessing: isEditAfterProcessing,
   } = useImageFilePicker({
     onFileSelected: setEditWorkAfterFile,
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
+    prepareFile: (file) => optimizeLargeImage(file),
+    onPrepared: (result) => {
+      if (result?.optimized) {
+        setToast({ type: 'success', text: 'Large After photo was optimized automatically.' })
+      }
+    },
   })
 
   function validateCategoryImage(file) {
@@ -505,7 +669,7 @@ export default function Admin() {
 
   function validateWorkImage(file) {
     if (!file) return { ok: true }
-    if (file.size > 15 * 1024 * 1024) return { ok: false, message: 'Image must be <= 15MB.' }
+    if (file.size > WORK_IMAGE_MAX_BYTES) return { ok: false, message: 'Image is still too large after optimization. Please choose a slightly smaller file.' }
     if (file.type && !String(file.type).startsWith('image/')) return { ok: false, message: 'Please select an image file.' }
     return { ok: true }
   }
@@ -926,9 +1090,9 @@ export default function Admin() {
                                     if (editWorkAfterFile) fd.append('after', editWorkAfterFile)
                                     updateWorkMutation.mutate({ id: item.id, data: fd })
                                   }}
-                                  disabled={updateWorkMutation.isPending}
+                                  disabled={updateWorkMutation.isPending || isEditBeforeProcessing || isEditAfterProcessing}
                                 >
-                                  {item.id === savingWorkId ? 'Saving…' : 'Save'}
+                                  {isEditBeforeProcessing || isEditAfterProcessing ? 'Optimizing…' : item.id === savingWorkId ? 'Saving…' : 'Save'}
                                 </button>
                                 <button type="button" style={styles.buttonSubtle} onClick={cancelEditWork}>
                                   Cancel
@@ -1002,7 +1166,7 @@ export default function Admin() {
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ fontSize: 16, fontWeight: 600 }}>Upload</div>
-                    <div style={{ color: '#bdbdbd', fontSize: 12 }}>Uploads to Supabase bucket: portfolio</div>
+                    <div style={{ color: '#bdbdbd', fontSize: 12 }}>Large photos are optimized automatically before upload</div>
                   </div>
 
                   <div className="admin-grid-2">
@@ -1074,7 +1238,7 @@ export default function Admin() {
                               <Icon name="upload" />
                             </div>
                             <div className="admin-upload-title">Click to upload Before Photo</div>
-                            <div className="admin-upload-sub">or drag and drop an image here</div>
+                            <div className="admin-upload-sub">or drag and drop an image here • files over 15MB are auto-optimized</div>
                           </div>
                         )}
 
@@ -1084,7 +1248,7 @@ export default function Admin() {
                               <img key={`preview:${beforePreviewUrl}`} src={beforePreviewUrl} alt="Before preview" />
                               <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
                               <div className="admin-media-pill">BEFORE</div>
-                              <div className="admin-upload-chip">Click to change</div>
+                              <div className="admin-upload-chip">{isBeforeProcessing ? 'Optimizing…' : 'Click to change'}</div>
                             </div>
                             <div className="admin-upload-actions">
                               <button
@@ -1129,7 +1293,7 @@ export default function Admin() {
                               <Icon name="image" />
                             </div>
                             <div className="admin-upload-title">Click to upload After Photo</div>
-                            <div className="admin-upload-sub">or drag and drop an image here</div>
+                            <div className="admin-upload-sub">or drag and drop an image here • files over 15MB are auto-optimized</div>
                           </div>
                         )}
 
@@ -1139,7 +1303,7 @@ export default function Admin() {
                               <img key={`preview:${afterPreviewUrl}`} src={afterPreviewUrl} alt="After preview" />
                               <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.18)' }} />
                               <div className="admin-media-pill after">AFTER</div>
-                              <div className="admin-upload-chip">Click to change</div>
+                              <div className="admin-upload-chip">{isAfterProcessing ? 'Optimizing…' : 'Click to change'}</div>
                             </div>
                             <div className="admin-upload-actions">
                               <button
@@ -1163,6 +1327,8 @@ export default function Admin() {
                       style={styles.button}
                       disabled={
                         createMutation.isPending ||
+                        isBeforeProcessing ||
+                        isAfterProcessing ||
                         categoriesQuery.isLoading ||
                         (categoriesQuery.data || []).length === 0 ||
                         !newItem.category ||
@@ -1170,7 +1336,7 @@ export default function Admin() {
                         !newItem.after
                       }
                     >
-                      {createMutation.isPending ? 'Uploading…' : 'Add to Portfolio'}
+                      {isBeforeProcessing || isAfterProcessing ? 'Optimizing…' : createMutation.isPending ? 'Uploading…' : 'Add to Portfolio'}
                     </button>
                   </div>
                 </form>

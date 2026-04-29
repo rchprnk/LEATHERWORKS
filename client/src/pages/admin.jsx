@@ -10,7 +10,8 @@ const CATEGORY_IMAGE_MAX_BYTES = 2 * 1024 * 1024
 const CATEGORY_IMAGE_TARGET_BYTES = Math.floor(1.8 * 1024 * 1024)
 const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
-const IMAGE_INPUT_ACCEPT = '.jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif'
+const IMAGE_INPUT_ACCEPT = 'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.bmp,.tif,.tiff,.svg'
+const SUPPORTED_IMAGE_EXT_RE = /\.(jpe?g|png|webp|hei[cf]|avif|gif|bmp|tiff?|svg)$/i
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -44,6 +45,12 @@ function isHeicLike(file) {
   const type = String(file?.type || '').toLowerCase()
   const name = String(file?.name || '').toLowerCase()
   return type === 'image/heic' || type === 'image/heif' || /\.hei[cf]$/i.test(name)
+}
+
+function isSupportedImageLike(file) {
+  const type = String(file?.type || '').toLowerCase()
+  const name = String(file?.name || '')
+  return isHeicLike(file) || type.startsWith('image/') || SUPPORTED_IMAGE_EXT_RE.test(name)
 }
 
 function loadImageFromFile(file) {
@@ -561,11 +568,12 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   draggable={false}
                   style={{
                     position: 'absolute',
-                    left: imageLeft,
-                    top: imageTop,
+                    inset: 0,
                     display: 'block',
-                    width: imageWidth || 'auto',
-                    height: imageHeight || 'auto',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     pointerEvents: 'none',
@@ -1307,20 +1315,15 @@ export default function Admin() {
 
   function validateCategoryImage(file) {
     if (!file) return { ok: true }
-    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
-    const allowedExt = /\.(jpe?g|png|webp|hei[cf])$/i
     if (file.size > CATEGORY_IMAGE_MAX_BYTES) return { ok: false, message: 'Category image is still too large after optimization. Please choose a slightly smaller file.' }
-    if (file.type && !allowedTypes.has(file.type) && !isHeicLike(file)) return { ok: false, message: 'Only .jpg, .png, .webp, and .heic are allowed.' }
-    if (!file.type && !allowedExt.test(file.name || '')) return { ok: false, message: 'Only .jpg, .png, .webp, and .heic are allowed.' }
+    if (!isSupportedImageLike(file)) return { ok: false, message: 'Please select a supported image file.' }
     return { ok: true }
   }
 
   function validateWorkImage(file) {
     if (!file) return { ok: true }
     if (file.size > WORK_IMAGE_MAX_BYTES) return { ok: false, message: 'Image is still too large after optimization. Please choose a slightly smaller file.' }
-    const allowedExt = /\.(jpe?g|png|webp|hei[cf])$/i
-    if (file.type && !String(file.type).startsWith('image/') && !isHeicLike(file)) return { ok: false, message: 'Please select a valid image file.' }
-    if (!file.type && !allowedExt.test(file.name || '')) return { ok: false, message: 'Only .jpg, .png, .webp, and .heic are allowed.' }
+    if (!isSupportedImageLike(file)) return { ok: false, message: 'Please select a supported image file.' }
     return { ok: true }
   }
 

@@ -10,6 +10,7 @@ const CATEGORY_IMAGE_MAX_BYTES = 2 * 1024 * 1024
 const CATEGORY_IMAGE_TARGET_BYTES = Math.floor(1.8 * 1024 * 1024)
 const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
+const IMAGE_INPUT_ACCEPT = '.jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif'
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -37,6 +38,12 @@ function extensionForMime(type) {
   if (type === 'image/png') return 'png'
   if (type === 'image/webp') return 'webp'
   return 'jpg'
+}
+
+function isHeicLike(file) {
+  const type = String(file?.type || '').toLowerCase()
+  const name = String(file?.name || '').toLowerCase()
+  return type === 'image/heic' || type === 'image/heif' || /\.hei[cf]$/i.test(name)
 }
 
 function loadImageFromFile(file) {
@@ -76,9 +83,80 @@ function readFileAsDataUrl(file) {
   })
 }
 
+async function loadDrawableFromFile(file) {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file)
+      return {
+        width: bitmap.width,
+        height: bitmap.height,
+        draw: (context, width, height) => context.drawImage(bitmap, 0, 0, width, height),
+        dispose: () => bitmap.close?.(),
+      }
+    } catch {
+      // fall back to HTML image decoding
+    }
+  }
+
+  const image = await loadImageFromFile(file)
+  const width = image.naturalWidth || image.width
+  const height = image.naturalHeight || image.height
+  return {
+    width,
+    height,
+    draw: (context, drawWidth, drawHeight) => context.drawImage(image, 0, 0, drawWidth, drawHeight),
+    dispose: () => {},
+  }
+}
+
+async function convertHeicIfNeeded(file) {
+  if (!file || !isHeicLike(file)) {
+    return { file, converted: false }
+  }
+
+  let drawable = null
+  try {
+    drawable = await loadDrawableFromFile(file)
+    const width = Math.max(1, Math.round(drawable.width || 0))
+    const height = Math.max(1, Math.round(drawable.height || 0))
+    if (!width || !height) {
+      throw new Error('Failed to read HEIC image dimensions.')
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d', { alpha: false })
+    if (!context) {
+      throw new Error('Image conversion is not supported in this browser.')
+    }
+
+    drawable.draw(context, width, height)
+    const blob = await canvasToBlob(canvas, 'image/jpeg', 0.96)
+    const convertedFile = new File(
+      [blob],
+      fileNameWithExtension(file.name, 'jpg'),
+      { type: 'image/jpeg', lastModified: Date.now() }
+    )
+
+    return { file: convertedFile, converted: true }
+  } catch {
+    throw new Error('This browser could not open the HEIC photo. Please try again from iPhone Photos or convert it to JPG first.')
+  } finally {
+    drawable?.dispose?.()
+  }
+}
+
 async function optimizeLargeImage(file, { maxBytes = WORK_IMAGE_MAX_BYTES, targetBytes = WORK_IMAGE_TARGET_BYTES } = {}) {
-  if (!file || file.size <= maxBytes) {
-    return { file, optimized: false }
+  if (!file) {
+    return { file, optimized: false, converted: false }
+  }
+
+  const normalized = await convertHeicIfNeeded(file)
+  file = normalized.file
+
+  if (file.size <= maxBytes) {
+    return { file, optimized: false, converted: normalized.converted }
   }
 
   const image = await loadImageFromFile(file)
@@ -122,7 +200,7 @@ async function optimizeLargeImage(file, { maxBytes = WORK_IMAGE_MAX_BYTES, targe
           fileNameWithExtension(file.name, extensionForMime(outputType)),
           { type: outputType, lastModified: Date.now() }
         )
-        return { file: nextFile, optimized: true }
+        return { file: nextFile, optimized: true, converted: normalized.converted }
       }
     }
 
@@ -136,10 +214,10 @@ async function optimizeLargeImage(file, { maxBytes = WORK_IMAGE_MAX_BYTES, targe
       fileNameWithExtension(file.name, extensionForMime(outputType)),
       { type: outputType, lastModified: Date.now() }
     )
-    return { file: nextFile, optimized: true }
+    return { file: nextFile, optimized: true, converted: normalized.converted }
   }
 
-  return { file, optimized: false }
+  return { file, optimized: false, converted: normalized.converted }
 }
 
 function useImageCropper() {
@@ -946,32 +1024,36 @@ export default function Admin() {
 
   async function cropAndOptimizeWorkImage(file, label = 'image') {
     if (!file) return { file, optimized: false }
-    const croppedFile = await requestCrop(file, {
+    const normalized = await convertHeicIfNeeded(file)
+    const croppedFile = await requestCrop(normalized.file, {
       aspect: 4 / 5,
       title: `Adjust ${label}`,
       helper: 'This frame matches the Before / After image area shown on the site.',
       maxOutputSide: 2000,
-      outputType: getCanvasOutputType(file),
+      outputType: getCanvasOutputType(normalized.file),
     })
-    return optimizeLargeImage(croppedFile, {
+    const result = await optimizeLargeImage(croppedFile, {
       maxBytes: WORK_IMAGE_MAX_BYTES,
       targetBytes: WORK_IMAGE_TARGET_BYTES,
     })
+    return { ...result, converted: normalized.converted || result.converted }
   }
 
   async function cropAndOptimizeCategoryImage(file) {
     if (!file) return { file, optimized: false }
-    const croppedFile = await requestCrop(file, {
+    const normalized = await convertHeicIfNeeded(file)
+    const croppedFile = await requestCrop(normalized.file, {
       aspect: 1,
       title: 'Adjust category image',
       helper: 'This square frame matches how category images are cropped on the site.',
       maxOutputSide: 1600,
-      outputType: getCanvasOutputType(file),
+      outputType: getCanvasOutputType(normalized.file),
     })
-    return optimizeLargeImage(croppedFile, {
+    const result = await optimizeLargeImage(croppedFile, {
       maxBytes: CATEGORY_IMAGE_MAX_BYTES,
       targetBytes: CATEGORY_IMAGE_TARGET_BYTES,
     })
+    return { ...result, converted: normalized.converted || result.converted }
   }
 
   // Categories
@@ -1088,7 +1170,11 @@ export default function Admin() {
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: cropAndOptimizeCategoryImage,
     onPrepared: (result) => {
-      if (result?.optimized) {
+      if (result?.converted && result?.optimized) {
+        setToast({ type: 'success', text: 'HEIC category image was converted to JPG and optimized automatically.' })
+      } else if (result?.converted) {
+        setToast({ type: 'success', text: 'HEIC category image was converted to JPG automatically.' })
+      } else if (result?.optimized) {
         setToast({ type: 'success', text: 'Category image was optimized automatically.' })
       }
     },
@@ -1109,7 +1195,11 @@ export default function Admin() {
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: cropAndOptimizeCategoryImage,
     onPrepared: (result) => {
-      if (result?.optimized) {
+      if (result?.converted && result?.optimized) {
+        setToast({ type: 'success', text: 'HEIC category image was converted to JPG and optimized automatically.' })
+      } else if (result?.converted) {
+        setToast({ type: 'success', text: 'HEIC category image was converted to JPG automatically.' })
+      } else if (result?.optimized) {
         setToast({ type: 'success', text: 'Category image was optimized automatically.' })
       }
     },
@@ -1130,7 +1220,11 @@ export default function Admin() {
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: (file) => cropAndOptimizeWorkImage(file, 'Before photo'),
     onPrepared: (result) => {
-      if (result?.optimized) {
+      if (result?.converted && result?.optimized) {
+        setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG and optimized automatically.' })
+      } else if (result?.converted) {
+        setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG automatically.' })
+      } else if (result?.optimized) {
         setToast({ type: 'success', text: 'Large Before photo was optimized automatically.' })
       }
     },
@@ -1151,7 +1245,11 @@ export default function Admin() {
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: (file) => cropAndOptimizeWorkImage(file, 'After photo'),
     onPrepared: (result) => {
-      if (result?.optimized) {
+      if (result?.converted && result?.optimized) {
+        setToast({ type: 'success', text: 'HEIC After photo was converted to JPG and optimized automatically.' })
+      } else if (result?.converted) {
+        setToast({ type: 'success', text: 'HEIC After photo was converted to JPG automatically.' })
+      } else if (result?.optimized) {
         setToast({ type: 'success', text: 'Large After photo was optimized automatically.' })
       }
     },
@@ -1172,7 +1270,11 @@ export default function Admin() {
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: (file) => cropAndOptimizeWorkImage(file, 'Before photo'),
     onPrepared: (result) => {
-      if (result?.optimized) {
+      if (result?.converted && result?.optimized) {
+        setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG and optimized automatically.' })
+      } else if (result?.converted) {
+        setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG automatically.' })
+      } else if (result?.optimized) {
         setToast({ type: 'success', text: 'Large Before photo was optimized automatically.' })
       }
     },
@@ -1193,7 +1295,11 @@ export default function Admin() {
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: (file) => cropAndOptimizeWorkImage(file, 'After photo'),
     onPrepared: (result) => {
-      if (result?.optimized) {
+      if (result?.converted && result?.optimized) {
+        setToast({ type: 'success', text: 'HEIC After photo was converted to JPG and optimized automatically.' })
+      } else if (result?.converted) {
+        setToast({ type: 'success', text: 'HEIC After photo was converted to JPG automatically.' })
+      } else if (result?.optimized) {
         setToast({ type: 'success', text: 'Large After photo was optimized automatically.' })
       }
     },
@@ -1202,17 +1308,19 @@ export default function Admin() {
   function validateCategoryImage(file) {
     if (!file) return { ok: true }
     const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
-    const allowedExt = /\.(jpe?g|png|webp)$/i
+    const allowedExt = /\.(jpe?g|png|webp|hei[cf])$/i
     if (file.size > CATEGORY_IMAGE_MAX_BYTES) return { ok: false, message: 'Category image is still too large after optimization. Please choose a slightly smaller file.' }
-    if (file.type && !allowedTypes.has(file.type)) return { ok: false, message: 'Only .jpg, .png, and .webp are allowed.' }
-    if (!file.type && !allowedExt.test(file.name || '')) return { ok: false, message: 'Only .jpg, .png, and .webp are allowed.' }
+    if (file.type && !allowedTypes.has(file.type) && !isHeicLike(file)) return { ok: false, message: 'Only .jpg, .png, .webp, and .heic are allowed.' }
+    if (!file.type && !allowedExt.test(file.name || '')) return { ok: false, message: 'Only .jpg, .png, .webp, and .heic are allowed.' }
     return { ok: true }
   }
 
   function validateWorkImage(file) {
     if (!file) return { ok: true }
     if (file.size > WORK_IMAGE_MAX_BYTES) return { ok: false, message: 'Image is still too large after optimization. Please choose a slightly smaller file.' }
-    if (file.type && !String(file.type).startsWith('image/')) return { ok: false, message: 'Please select an image file.' }
+    const allowedExt = /\.(jpe?g|png|webp|hei[cf])$/i
+    if (file.type && !String(file.type).startsWith('image/') && !isHeicLike(file)) return { ok: false, message: 'Please select a valid image file.' }
+    if (!file.type && !allowedExt.test(file.name || '')) return { ok: false, message: 'Only .jpg, .png, .webp, and .heic are allowed.' }
     return { ok: true }
   }
 
@@ -1524,7 +1632,7 @@ export default function Admin() {
                                   ref={editWorkBeforeInputRef}
                                   className="admin-file-input"
                                   type="file"
-                                  accept="image/*"
+                                  accept={IMAGE_INPUT_ACCEPT}
                                   onChange={onEditWorkBeforeChange}
                                 />
                                 <label
@@ -1553,7 +1661,7 @@ export default function Admin() {
                                   ref={editWorkAfterInputRef}
                                   className="admin-file-input"
                                   type="file"
-                                  accept="image/*"
+                                  accept={IMAGE_INPUT_ACCEPT}
                                   onChange={onEditWorkAfterChange}
                                 />
                                 <label
@@ -1774,7 +1882,7 @@ export default function Admin() {
                           ref={beforeInputRef}
                           className="admin-file-input"
                           type="file"
-                          accept="image/*"
+                          accept={IMAGE_INPUT_ACCEPT}
                           onChange={onBeforeChange}
                         />
 
@@ -1828,7 +1936,7 @@ export default function Admin() {
                           ref={afterInputRef}
                           className="admin-file-input"
                           type="file"
-                          accept="image/*"
+                          accept={IMAGE_INPUT_ACCEPT}
                           onChange={onAfterChange}
                         />
 
@@ -1946,7 +2054,7 @@ export default function Admin() {
                                 ref={editCategoryImageInputRef}
                                 className="admin-file-input"
                                 type="file"
-                                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                accept={IMAGE_INPUT_ACCEPT}
                                 onChange={onEditCategoryImageChange}
                               />
                               <label
@@ -2111,7 +2219,7 @@ export default function Admin() {
                         ref={categoryImageInputRef}
                         className="admin-file-input"
                         type="file"
-                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        accept={IMAGE_INPUT_ACCEPT}
                         onChange={onCategoryImageChange}
                       />
 

@@ -873,12 +873,12 @@ async function saveContact(payload) {
 
 function Field({ label, children }) {
   return (
-    <label style={{ display: 'grid', gap: 8 }}>
+    <div style={{ display: 'grid', gap: 8 }}>
       <div style={{ fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', color: '#d0d0d0' }}>
         {label}
       </div>
       {children}
-    </label>
+    </div>
   )
 }
 

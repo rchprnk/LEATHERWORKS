@@ -6,10 +6,10 @@ const reviewsData = [
   {
     id: 1,
     name: "Michael Johnson",
-    service: "Car Seat Restoration",
+    service: "Leather Bag Restoration",
     rating: 5,
     date: "March 2026",
-    text: "Absolutely incredible work! My BMW's leather seats looked brand new after Prime Leather Repair worked their magic. The color matching was perfect, and the craftsmanship is top-notch. Highly recommend!",
+    text: "Absolutely incredible work! My leather bag looked brand new after Prime Leather Repair worked their magic. The color matching was perfect, and the craftsmanship is top-notch. Highly recommend!",
     verified: "Verified via WhatsApp"
   },
   {
@@ -24,10 +24,10 @@ const reviewsData = [
   {
     id: 3,
     name: "David Chen",
-    service: "Luxury Sofa Restoration",
+    service: "Leather Jacket Restoration",
     rating: 5,
     date: "January 2026",
-    text: "Our vintage leather sofa has been in the family for decades. Prime Leather Repair brought it back to life with such care and precision. The leather conditioning treatment made it feel brand new. Exceptional service!",
+    text: "My leather jacket has been in the family for decades. Prime Leather Repair brought it back to life with such care and precision. The conditioning treatment made it feel brand new. Exceptional service!",
     verified: "Verified via WhatsApp"
   },
   {

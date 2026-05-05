@@ -1,6 +1,5 @@
 import heroImg from '../assets/hero.png'
 import crafterImg from '../assets/crafter.png'
-import commercial1Img from '../assets/commercial-1.png'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getCategories, getPortfolio } from '../services/api'
@@ -58,7 +57,7 @@ const WHY_ITEMS = [
   {
     num: '2',
     title: 'Expert Solutions',
-    desc: 'We provide restoration for furniture, automotive interiors, handbags, and apparel, extending the life of leather while preserving its original feel.',
+    desc: 'We restore handbags, shoes, jackets, and everyday leather essentials—extending the life of each piece while preserving its original feel.',
   },
   {
     num: '3',
@@ -73,9 +72,9 @@ const WHY_ITEMS = [
 ]
 
 const DEFAULT_SERVICES = [
-  { id: 'bags-wallets', name: 'Bags, Wallets', description: 'Luxury accessories restoration' },
-  { id: 'car-seats', name: 'Car Seats', description: 'Automotive interior repair' },
-  { id: 'furniture', name: 'Furniture', description: 'Premium furniture restoration' },
+  { id: 'bags-wallets', name: 'Bags & Wallets', description: 'Luxury accessories restoration' },
+  { id: 'shoes-boots', name: 'Shoes & Boots', description: 'Scuffs, scratches, recoloring' },
+  { id: 'jackets-apparel', name: 'Jackets & Apparel', description: 'Repairs, conditioning, refinishing' },
 ]
 
 const SERVICE_VISUALS = {
@@ -90,25 +89,20 @@ const SERVICE_VISUALS = {
       </svg>
     ),
   },
-  automotive: {
-    img: 'https://images.unsplash.com/photo-1679945747285-26f0e6569958?w=800&q=80',
+  footwear: {
+    img: 'https://images.unsplash.com/photo-1528701800489-20be3c55a1d5?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2" />
-        <path d="M19 17h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" />
-        <rect x="5" y="5" width="14" height="14" rx="2" />
-        <circle cx="7.5" cy="17.5" r="1.5" />
-        <circle cx="16.5" cy="17.5" r="1.5" />
+        <path d="M4 14c3 0 5-2 7-5 1 2 3 4 7 5v5H4v-5z" />
+        <path d="M4 19h14" />
       </svg>
     ),
   },
-  furniture: {
-    img: 'https://images.unsplash.com/photo-1708869979139-6d4137a12684?w=800&q=80',
+  apparel: {
+    img: 'https://images.unsplash.com/photo-1520975958225-7b7a3f3d6a25?w=800&q=80',
     icon: (
       <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <path d="M2 9V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3" />
-        <path d="M2 11a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3H2v-3z" />
-        <path d="M4 14v4M20 14v4M4 18h16" />
+        <path d="M9 4l3 2 3-2 4 4-3 2v12H8V10L5 8l4-4z" />
       </svg>
     ),
   },
@@ -125,6 +119,15 @@ const SERVICE_VISUALS = {
 
 function normalizeCategoryKey(name = '') {
   return String(name).trim().toLowerCase()
+}
+
+function sanitizeCategoryLabel(label = '') {
+  const raw = String(label || '').trim()
+  const key = raw.toLowerCase()
+  if (!key) return raw
+  if (/(car|auto|vehicle|seat|bmw|mercedes|audi)/i.test(key)) return 'Leather essentials'
+  if (/(sofa|couch|furniture)/i.test(key)) return 'Leather essentials'
+  return raw
 }
 
 function getServiceVisual(name) {
@@ -171,6 +174,7 @@ export default function Home() {
             return {
               ...category,
               imageUrl: category.img_categories || match?.after_url || match?.before_url || null,
+              displayName: sanitizeCategoryLabel(category.name),
             }
           })
         )
@@ -560,7 +564,7 @@ export default function Home() {
                     <div className="svc-content">
                       <div style={{ marginBottom: 14 }}>{visual.icon}</div>
                       <h3 className="svc-title" style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#fff', marginBottom: 6 }}>
-                        {service.name}
+                        {service.displayName || service.name}
                       </h3>
                       <p className="svc-desc" style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.45 }}>
                         {service.description || 'Premium leather restoration tailored to your category.'}
@@ -599,40 +603,6 @@ export default function Home() {
               From color matching to texture restoration, we use only premium materials and time-tested techniques to ensure lasting results.
             </p>
             <Link to="/portfolio" className="btn-primary">See Our Portfolio</Link>
-          </Reveal>
-        </div>
-      </section>
-
-      <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,100px)' }}>
-        <div className="commercial-flex" style={{ display: 'flex', gap: 80, alignItems: 'center', maxWidth: 1160, margin: '0 auto' }}>
-          <Reveal style={{ flex: 1 }}>
-            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(32px,4vw,52px)', fontWeight: 500, color: '#fff', lineHeight: 1.15, marginBottom: 28 }}>
-              Commercial Services
-            </h2>
-            <p style={{ fontFamily: 'var(--sans)', fontSize: 16, color: 'var(--text-mid)', lineHeight: 1.78, marginBottom: 32 }}>
-              We partner with luxury hotels, car dealerships, and furniture retailers to maintain their premium leather inventory. Our commercial services ensure your business assets always look their best.
-            </p>
-            <ul className="bullet-list" style={{ marginBottom: 44 }}>
-              {['Fleet vehicle interior restoration', 'Hotel and restaurant furniture maintenance', 'Retail inventory touch-ups'].map((item) => (
-                <li key={item}>
-                  <span className="bullet-dot" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <Link to="/contact" className="btn-outline">Request Quote</Link>
-          </Reveal>
-
-          <Reveal delay={120} style={{ flex: '0 0 auto', width: 'min(520px, 100%)' }}>
-            <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', aspectRatio: '4/3' }}>
-              <img
-                src={commercial1Img}
-                alt="commercial leather service"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.6s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.04)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
-              />
-            </div>
           </Reveal>
         </div>
       </section>

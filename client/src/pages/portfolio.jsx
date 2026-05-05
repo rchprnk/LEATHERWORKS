@@ -2,6 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getCategories, getPortfolio } from '../services/api'
 
+function sanitizeCategoryLabel(label = '') {
+  const raw = String(label || '').trim()
+  const key = raw.toLowerCase()
+  if (!key) return raw
+  if (/(car|auto|vehicle|seat|bmw|mercedes|audi)/i.test(key)) return 'Leather essentials'
+  if (/(sofa|couch|furniture)/i.test(key)) return 'Leather essentials'
+  return raw
+}
+
 function useReveal() {
   const ref = useRef(null)
   const [visible, setVisible] = useState(false)
@@ -123,7 +132,7 @@ function PortfolioCard({ item }) {
             fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
             color: '#FE9A00', textTransform: 'uppercase', letterSpacing: '0.6px',
             marginBottom: 6,
-          }}>{item.category}</div>
+          }}>{sanitizeCategoryLabel(item.category)}</div>
           <div className="portfolio-card__title" style={{
             fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500,
             color: '#fff', lineHeight: 1.3, marginBottom: 6,
@@ -365,7 +374,7 @@ export default function Portfolio() {
                 outline: activeCategory === cat ? 'none' : '1.12px solid #262626',
                 boxShadow: activeCategory === cat ? '0 4px 15px -4px rgba(123,51,6,0.5)' : 'none',
               }}
-            >{cat}</button>
+            >{sanitizeCategoryLabel(cat)}</button>
           ))}
         </div>
       </div>

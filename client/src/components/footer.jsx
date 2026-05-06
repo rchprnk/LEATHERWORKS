@@ -3,10 +3,10 @@ import { getContact } from '../services/api'
 
 export function Footer() {
   const [contact, setContact] = useState({
-    phone: '+1 (312) 555-0199',
-    email: 'info@primeleatherrepair.com',
-    address: '123 Craft Street, Chicago, IL 60614',
-    workingHours: 'Mon - Fri: 9:00 AM - 6:00 PM',
+    phone: '',
+    email: '',
+    address: '',
+    workingHours: '',
   })
 
   useEffect(() => {
@@ -16,9 +16,9 @@ export function Footer() {
       .then(({ data }) => {
         if (!alive) return
         setContact({
-          phone: data?.phone || '+1 (312) 555-0199',
-          email: data?.email || 'info@primeleatherrepair.com',
-          address: data?.address || '123 Craft Street, Chicago, IL 60614',
+          phone: data?.phone || '+1 (847)899-73-12',
+          email: data?.email || 'primeleatherrepair@yahoo.com',
+          address: data?.address || '567 Fairway View Dr , Wheeling , IL 60090',
           workingHours: data?.working_hours || 'Mon - Fri: 9:00 AM - 6:00 PM',
         })
       })

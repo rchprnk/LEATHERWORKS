@@ -8,7 +8,7 @@ function normalizeContact(data) {
     phone: data?.phone || '',
     email: data?.email || '',
     address: data?.address || '',
-    workingHours: data?.working_hours || 'Mon - Fri:',
+    workingHours: data?.working_hours || '',
     whatsapp: data?.messenger_whatsapp || '',
   }
 }

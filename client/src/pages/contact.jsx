@@ -239,30 +239,35 @@ export default function Contact() {
             background: rgba(224, 210, 190, 0.94);
           }
           .contact-studio-card img {
-            height: 430px;
+            height: 320px;
             min-height: 0;
             object-position: center;
-            filter: saturate(0.84) contrast(0.9) brightness(0.88);
+            filter: saturate(0.86) contrast(0.94);
           }
           .contact-studio-copy {
-            position: relative;
-            z-index: 1;
-            margin: -150px 16px 16px;
+            margin: 0;
             padding: 22px;
-            border-radius: 18px;
-            background: rgba(244, 234, 223, 0.9);
-            border: 1px solid rgba(198, 169, 107, 0.24);
-            box-shadow: 0 18px 34px rgba(26, 20, 16, 0.16);
-            backdrop-filter: blur(14px);
+            border-radius: 0;
+            background: rgba(244, 234, 223, 0.96);
+            border: 0;
+            box-shadow: none;
+            backdrop-filter: none;
           }
           .contact-studio-copy h3 {
             color: var(--text-primary);
-            font-size: 1.75rem;
+            font-size: 1.55rem;
           }
           .contact-studio-copy p {
             color: #3f3a34;
-            font-size: 0.98rem;
-            line-height: 1.58;
+            font-size: 0.94rem;
+            line-height: 1.48;
+          }
+          .contact-studio-copy .contact-rule {
+            width: 52px;
+            height: 2px;
+          }
+          .contact-studio-copy .premium-button {
+            min-height: 48px;
           }
         }
       `}</style>
@@ -349,10 +354,10 @@ export default function Contact() {
               <img src={STUDIO_PHOTO} alt="Studio consultation table" />
               <div className="contact-studio-copy">
                 <h3>Visit Our Studio</h3>
-                <p>Stop by our Chicago area workshop to discuss your leather restoration needs. We offer free consultations and are always happy to show our craftsmanship firsthand.</p>
+                <p>Send a few photos of your leather item, or stop by to talk through the repair in person.</p>
                 <div className="contact-rule" />
                 <div className="contact-actions">
-                  <a className="premium-button" href={`mailto:${contact.email}`}>Email Photos</a>
+                  <a className="premium-button" href={`mailto:${contact.email}`}>Send Photos</a>
                   {whatsappLink ? (
                     <a className="premium-button-outline" href={whatsappLink} target="_blank" rel="noreferrer">WhatsApp</a>
                   ) : null}

@@ -5,10 +5,10 @@ const STUDIO_PHOTO = 'https://images.unsplash.com/photo-1517048676732-d65bc937f9
 
 function normalizeContact(data) {
   return {
-    phone: data?.phone || '+1 (312) 555-0199',
-    email: data?.email || 'info@primeleatherrepair.com',
-    address: data?.address || '123 Craft Street, Chicago, IL 60614',
-    workingHours: data?.working_hours || 'Mon - Fri: 9:00 AM - 6:00 PM',
+    phone: data?.phone || '',
+    email: data?.email || '',
+    address: data?.address || '',
+    workingHours: data?.working_hours || 'Mon - Fri:',
     whatsapp: data?.messenger_whatsapp || '',
   }
 }
@@ -21,7 +21,7 @@ function extractWhatsAppLink(value) {
 }
 
 function getMapSrc(address) {
-  return `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`
+  return `https://www.google.com/maps?q=${encodeURIComponent(address)}&t=k&z=17&output=embed`
 }
 
 function getAddressLines(address) {

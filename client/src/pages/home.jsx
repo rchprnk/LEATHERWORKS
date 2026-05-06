@@ -342,7 +342,8 @@ export default function Home() {
         .cta-panel .section-title {
           max-width: 760px;
           margin: 0 auto;
-          font-size: clamp(2.6rem, 5.8vw, 5.1rem);
+          font-size: clamp(2.45rem, 5.2vw, 4.65rem);
+          line-height: 1.1;
         }
         .cta-panel .section-copy {
           max-width: 700px;

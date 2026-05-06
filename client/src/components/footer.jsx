@@ -44,7 +44,7 @@ export function Footer() {
     <footer
       className="site-footer"
       style={{
-        background: 'linear-gradient(180deg, rgba(234,223,206,0.96), rgba(228,215,198,0.98))',
+        background: 'linear-gradient(180deg, rgba(224,210,190,0.98), rgba(213,196,172,0.99))',
         borderTop: '1px solid rgba(198, 169, 107, 0.18)',
         padding: '72px 0 28px',
       }}

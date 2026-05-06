@@ -16,9 +16,11 @@ function PortfolioCard({ item }) {
         </div>
       </div>
       <div className="portfolio-card__content">
-        <div className="premium-chip">{item.category || 'Leather Repair'}</div>
+        <div className="portfolio-card__meta">
+          <span>{item.category || 'Leather Repair'}</span>
+          <span>Before / After</span>
+        </div>
         <h3>{item.title || 'Damaged to Restored'}</h3>
-        <p>{item.description || 'Careful restoration with a cleaner, more premium final finish.'}</p>
       </div>
     </article>
   )
@@ -128,67 +130,88 @@ export default function Portfolio() {
         .portfolio-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 26px;
+          gap: 30px;
         }
         .portfolio-card {
           overflow: hidden;
+          background: #1a130f;
+          border: 1px solid rgba(198, 169, 107, 0.18);
+          border-radius: 8px;
+          box-shadow: 0 24px 48px rgba(56, 39, 26, 0.14);
         }
         .portfolio-card__pair {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 12px;
-          padding: 12px;
-          background: linear-gradient(135deg, rgba(214, 209, 230, 0.2), rgba(232, 199, 200, 0.2));
+          gap: 0;
+          padding: 0;
+          background: #0f0b09;
         }
         .portfolio-card__panel {
           position: relative;
-          aspect-ratio: 4 / 5;
+          aspect-ratio: 1 / 1.05;
           overflow: hidden;
-          border-radius: 22px;
+          border-radius: 0;
+        }
+        .portfolio-card__panel:first-child {
+          border-right: 2px solid rgba(244, 234, 223, 0.72);
         }
         .portfolio-card__panel img {
           width: 100%;
           height: 100%;
           object-fit: cover;
           display: block;
+          transform: scale(1.01);
+          filter: saturate(0.9) contrast(0.98);
         }
         .portfolio-badge {
           position: absolute;
-          top: 12px;
-          left: 12px;
-          min-height: 30px;
-          padding: 0 12px;
-          border-radius: 999px;
+          top: 16px;
+          left: 16px;
+          min-height: 34px;
+          padding: 0 14px;
+          border-radius: 7px;
           display: inline-flex;
           align-items: center;
-          background: rgba(255,255,255,0.88);
-          color: var(--text-primary);
-          font-size: 0.72rem;
+          background: rgba(26, 20, 16, 0.9);
+          color: #fff8ef;
+          font-size: 0.78rem;
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.08em;
+          box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
         }
         .portfolio-badge--after {
           left: auto;
-          right: 12px;
-          background: rgba(198, 169, 107, 0.9);
+          right: 16px;
+          background: #b58f3b;
           color: #fff;
         }
         .portfolio-card__content {
-          padding: 24px;
+          padding: 24px 26px 28px;
           display: grid;
-          gap: 12px;
+          gap: 14px;
+          background: #1a130f;
+        }
+        .portfolio-card__meta {
+          display: flex;
+          justify-content: space-between;
+          gap: 18px;
+          align-items: center;
+          color: rgba(244, 234, 223, 0.5);
+          font-size: 0.75rem;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .portfolio-card__meta span:first-child {
+          color: #c6a96b;
         }
         .portfolio-card__content h3 {
           margin: 0;
           font-family: var(--font-display);
           font-size: 2rem;
           line-height: 1;
-        }
-        .portfolio-card__content p {
-          margin: 0;
-          color: var(--text-secondary);
-          line-height: 1.72;
+          color: #fff7ef;
         }
         @media (max-width: 900px) {
           .portfolio-grid {
@@ -198,6 +221,15 @@ export default function Portfolio() {
         @media (max-width: 640px) {
           .portfolio-card__pair {
             grid-template-columns: 1fr;
+          }
+          .portfolio-card__panel:first-child {
+            border-right: 0;
+            border-bottom: 2px solid rgba(244, 234, 223, 0.72);
+          }
+          .portfolio-card__meta {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 6px;
           }
         }
       `}</style>

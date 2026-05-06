@@ -233,6 +233,37 @@ export default function Contact() {
             grid-template-columns: 1fr;
             padding: 24px;
           }
+          .contact-studio-card {
+            display: block;
+            position: relative;
+            background: rgba(224, 210, 190, 0.94);
+          }
+          .contact-studio-card img {
+            height: 430px;
+            min-height: 0;
+            object-position: center;
+            filter: saturate(0.84) contrast(0.9) brightness(0.88);
+          }
+          .contact-studio-copy {
+            position: relative;
+            z-index: 1;
+            margin: -150px 16px 16px;
+            padding: 22px;
+            border-radius: 18px;
+            background: rgba(244, 234, 223, 0.9);
+            border: 1px solid rgba(198, 169, 107, 0.24);
+            box-shadow: 0 18px 34px rgba(26, 20, 16, 0.16);
+            backdrop-filter: blur(14px);
+          }
+          .contact-studio-copy h3 {
+            color: var(--text-primary);
+            font-size: 1.75rem;
+          }
+          .contact-studio-copy p {
+            color: #3f3a34;
+            font-size: 0.98rem;
+            line-height: 1.58;
+          }
         }
       `}</style>
 

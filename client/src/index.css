@@ -316,23 +316,10 @@ img {
 
   .floating-socials {
     right: 14px !important;
-    bottom: calc(78px + var(--safe-area-bottom)) !important;
+    bottom: calc(18px + var(--safe-area-bottom)) !important;
   }
 
   .sticky-mobile-cta {
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: calc(12px + var(--safe-area-bottom));
-    z-index: 210;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 10px;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.94);
-    border: 1px solid rgba(232, 199, 200, 0.42);
-    box-shadow: 0 22px 38px rgba(26, 26, 26, 0.12);
-    backdrop-filter: blur(18px);
+    display: none;
   }
 }

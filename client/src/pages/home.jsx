@@ -163,10 +163,11 @@ export default function Home() {
           max-width: 640px;
           padding-left: clamp(28px, 4vw, 44px);
           padding-right: clamp(24px, 3vw, 34px);
-          border-radius: 0;
-          background: linear-gradient(135deg, rgba(17, 13, 11, 0.7), rgba(17, 13, 11, 0.22));
-          box-shadow: none;
-          backdrop-filter: blur(10px);
+          border-radius: 30px;
+          background: linear-gradient(135deg, rgba(17, 13, 11, 0.36), rgba(17, 13, 11, 0.1));
+          border: 1px solid rgba(244, 234, 223, 0.1);
+          box-shadow: 0 22px 54px rgba(16, 12, 10, 0.16);
+          backdrop-filter: blur(5px);
         }
         .hero-copy .section-title {
           color: #fff8f1;
@@ -388,6 +389,9 @@ export default function Home() {
             padding-left: clamp(24px, 5vw, 30px);
             padding-right: clamp(20px, 5vw, 26px);
             max-width: none;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(17, 13, 11, 0.28), rgba(17, 13, 11, 0.08));
+            backdrop-filter: blur(4px);
           }
           .cta-panel .section-title {
             font-size: clamp(2.3rem, 11vw, 3.8rem);

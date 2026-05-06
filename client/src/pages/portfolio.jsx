@@ -134,8 +134,8 @@ export default function Portfolio() {
         }
         .portfolio-card {
           overflow: hidden;
-          background: #1a130f;
-          border: 1px solid rgba(198, 169, 107, 0.18);
+          background: #d4c2aa;
+          border: 1px solid rgba(111, 83, 49, 0.28);
           border-radius: 8px;
           box-shadow: 0 24px 48px rgba(56, 39, 26, 0.14);
         }
@@ -153,7 +153,7 @@ export default function Portfolio() {
           border-radius: 0;
         }
         .portfolio-card__panel:first-child {
-          border-right: 2px solid rgba(244, 234, 223, 0.72);
+          border-right: 2px solid rgba(111, 83, 49, 0.38);
         }
         .portfolio-card__panel img {
           width: 100%;
@@ -190,28 +190,28 @@ export default function Portfolio() {
           padding: 24px 26px 28px;
           display: grid;
           gap: 14px;
-          background: #1a130f;
+          background: #d4c2aa;
         }
         .portfolio-card__meta {
           display: flex;
           justify-content: space-between;
           gap: 18px;
           align-items: center;
-          color: rgba(244, 234, 223, 0.5);
+          color: rgba(77, 58, 40, 0.55);
           font-size: 0.75rem;
           font-weight: 800;
           letter-spacing: 0.08em;
           text-transform: uppercase;
         }
         .portfolio-card__meta span:first-child {
-          color: #c6a96b;
+          color: #8a6828;
         }
         .portfolio-card__content h3 {
           margin: 0;
           font-family: var(--font-display);
           font-size: 2rem;
           line-height: 1;
-          color: #fff7ef;
+          color: var(--text-primary);
         }
         @media (max-width: 900px) {
           .portfolio-grid {
@@ -224,7 +224,7 @@ export default function Portfolio() {
           }
           .portfolio-card__panel:first-child {
             border-right: 0;
-            border-bottom: 2px solid rgba(244, 234, 223, 0.72);
+            border-bottom: 2px solid rgba(111, 83, 49, 0.38);
           }
           .portfolio-card__meta {
             align-items: flex-start;

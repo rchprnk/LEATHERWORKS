@@ -99,6 +99,7 @@ export default function Home() {
   const [services, setServices] = useState([])
   const [servicesLoading, setServicesLoading] = useState(true)
   const visibleServices = services.slice(0, 3)
+  const serviceColumnCount = servicesLoading ? 3 : Math.max(1, Math.min(visibleServices.length, 3))
 
   useEffect(() => {
     let alive = true
@@ -203,7 +204,8 @@ export default function Home() {
         }
         .services-grid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(var(--service-columns, 3), minmax(280px, 380px));
+          justify-content: center;
           gap: 0;
           border-top: 1px solid rgba(198, 169, 107, 0.24);
           border-bottom: 1px solid rgba(198, 169, 107, 0.24);
@@ -420,7 +422,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="services-grid">
+            <div className="services-grid" style={{ '--service-columns': serviceColumnCount }}>
               {servicesLoading ? (
                 [0, 1, 2].map((item) => (
                   <div key={item} className="service-card service-card--loading">

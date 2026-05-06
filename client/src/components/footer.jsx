@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react'
 import { getContact } from '../services/api'
 
 export function Footer() {
@@ -35,83 +35,65 @@ export function Footer() {
       raw.replace(/^(mon|monday)\s*[-–]\s*(fri|friday)\s*:?\s*/i, '').trim() || raw
 
     return [
-      { day: 'Mon - Fri', time: weekdayTime || '9:00AM - 6:00PM' },
+      { day: 'Mon - Fri', time: weekdayTime || '9:00 AM - 6:00 PM' },
       { day: 'Sunday', time: 'Closed' },
     ]
   }, [contact.workingHours])
 
   return (
-    <footer id="contact" className="site-footer" style={{ 
-      background: 'var(--bg3)', 
-      borderTop: '1px solid var(--border)', 
-      padding: 'clamp(56px,7vw,80px) clamp(24px,6vw,100px) 36px' 
-    }}>
-      <div className="site-footer__grid" style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1.5fr 1fr 1fr', 
-        gap: 48, 
-        marginBottom: 52 
-      }}>
-        {/* Brand */}
-        <div>
-          <h3 style={{ fontFamily: 'var(--serif)', fontSize: 26, fontWeight: 400, color: 'var(--gold-pale)', marginBottom: 14 }}>
-            Prime Leather Repair
-          </h3>
-          <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.72, maxWidth: 280, marginBottom: 20 }}>
-            Chicago's premier leather restoration specialists. Preserving craftsmanship and extending the life of your finest pieces.
-          </p>
-          <div style={{ width: 44, height: 2, background: 'var(--gold)' }} />
-        </div>
+    <footer
+      className="site-footer"
+      style={{
+        background: 'linear-gradient(180deg, rgba(234,223,206,0.96), rgba(228,215,198,0.98))',
+        borderTop: '1px solid rgba(198, 169, 107, 0.18)',
+        padding: '72px 0 28px',
+      }}
+    >
+      <div className="site-container">
+        <div className="site-footer__grid" style={{ marginBottom: 40 }}>
+          <div style={{ padding: 12 }}>
+            <div className="section-kicker">Prime Leather Repair</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 3vw, 2.15rem)', lineHeight: 1.05, margin: '12px 0 10px', color: 'var(--text-primary)' }}>
+              Prime Leather Repair
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.98rem', lineHeight: 1.62, margin: 0 }}>
+              Chicago’s premium leather restoration service for handbags, wallets, and favorite accessories. Careful craftsmanship and elegant results.
+            </p>
+            <div style={{ width: 48, height: 2, background: 'var(--accent-gold)', marginTop: 18 }} />
+          </div>
 
-        {/* Contact */}
-        <div>
-          <h4 style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '3px', marginBottom: 24 }}>
-            Contact
-          </h4>
-          {[
-            {
-              icon: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
-              text: contact.phone,
-            },
-            {
-              icon: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
-              text: contact.email,
-            },
-            {
-              icon: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-              text: contact.address,
-            },
-          ].map((c, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start', color: 'var(--text-dim)' }}>
-              <span style={{ marginTop: 2, flexShrink: 0 }}>{c.icon}</span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.5 }}>{c.text}</span>
+          <div style={{ padding: 12 }}>
+            <div className="section-kicker">Contact</div>
+            <div style={{ display: 'grid', gap: 14, marginTop: 18 }}>
+              <a href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontSize: '0.98rem', fontWeight: 600 }}>
+                {contact.phone}
+              </a>
+              <a href={`mailto:${contact.email}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontSize: '0.98rem', fontWeight: 600 }}>
+                {contact.email}
+              </a>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.96rem', lineHeight: 1.62 }}>{contact.address}</span>
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* Hours */}
-        <div>
-          <h4 style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '3px', marginBottom: 24 }}>
-            Hours
-          </h4>
-          {footerHours.map((item) => (
-            <div key={item.day} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)' }}>
-                {item.day}
-              </span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 500, color: item.time === 'Closed' ? '#666' : 'var(--gold-pale)', textAlign: 'right' }}>
-                {item.time}
-              </span>
+          <div style={{ padding: 12 }}>
+            <div className="section-kicker">Hours</div>
+            <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
+              {footerHours.map((item) => (
+                <div key={item.day} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>{item.day}</span>
+                  <span style={{ color: item.time === 'Closed' ? 'var(--text-secondary)' : 'var(--text-primary)', fontWeight: 600 }}>
+                    {item.time}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
 
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 28, textAlign: 'center' }}>
-        <p style={{ fontFamily: 'var(--sans)', fontSize: 13, color: '#444' }}>
-          © Prime Leather Repair. All rights reserved.
-        </p>
+        <div style={{ paddingTop: 20, borderTop: '1px solid rgba(26, 26, 26, 0.08)', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
+          Leather repair Chicago • Mobile leather repair • Couch repair near me
+        </div>
       </div>
     </footer>
-  );
+  )
 }

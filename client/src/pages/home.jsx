@@ -1,35 +1,56 @@
-import heroImg from '../assets/hero.png'
-import crafterImg from '../assets/crafter.png'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getCategories, getPortfolio } from '../services/api'
+
+const HERO_BG = 'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=1600&q=80'
+
+const DEFAULT_SERVICES = [
+  {
+    id: 'bags',
+    name: 'Bags & Wallets',
+    description: 'Luxury handbags and wallets restored with careful color work and a clean boutique finish.',
+    imageUrl: 'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'small-goods',
+    name: 'Small Leather Goods',
+    description: 'Scuffs, fading, edge wear, and daily damage repaired without losing the original feel.',
+    imageUrl: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'accessories',
+    name: 'Accessories Care',
+    description: 'Favorite leather pieces refreshed with careful detail work and a softer, more premium final look.',
+    imageUrl: 'https://images.unsplash.com/photo-1614179689702-355944cd0918?auto=format&fit=crop&w=900&q=80',
+  },
+]
 
 function useReveal() {
   const ref = useRef(null)
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
+    const node = ref.current
+    if (!node) return
 
-    const io = new IntersectionObserver(
+    const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setVisible(true)
-          io.disconnect()
+          observer.disconnect()
         }
       },
       { threshold: 0.12 }
     )
 
-    io.observe(el)
-    return () => io.disconnect()
+    observer.observe(node)
+    return () => observer.disconnect()
   }, [])
 
   return [ref, visible]
 }
 
-function Reveal({ children, delay = 0, style: outerStyle = {}, className = '' }) {
+function Reveal({ children, delay = 0, style = {}, className = '' }) {
   const [ref, visible] = useReveal()
 
   return (
@@ -38,9 +59,9 @@ function Reveal({ children, delay = 0, style: outerStyle = {}, className = '' })
       className={className}
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(28px)',
-        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
-        ...outerStyle,
+        transform: visible ? 'translateY(0)' : 'translateY(24px)',
+        transition: `opacity 0.65s ease ${delay}ms, transform 0.65s ease ${delay}ms`,
+        ...style,
       }}
     >
       {children}
@@ -48,143 +69,54 @@ function Reveal({ children, delay = 0, style: outerStyle = {}, className = '' })
   )
 }
 
-const WHY_ITEMS = [
-  {
-    num: '1',
-    title: 'Preserving Value',
-    desc: 'Professional leather repair is a craft that restores value, durability, and character to worn items.',
-  },
-  {
-    num: '2',
-    title: 'Expert Solutions',
-    desc: 'We restore handbags, shoes, jackets, and everyday leather essentials—extending the life of each piece while preserving its original feel.',
-  },
-  {
-    num: '3',
-    title: 'Precision Craft',
-    desc: 'Using industry-proven techniques and precise color matching to bring damaged leather back to life.',
-  },
-  {
-    num: '4',
-    title: 'Sustainable Quality',
-    desc: 'Instead of replacing expensive items, we offer a practical, cost-effective, and eco-friendly alternative.',
-  },
-]
-
-const DEFAULT_SERVICES = [
-  { id: 'bags-wallets', name: 'Bags & Wallets', description: 'Luxury accessories restoration' },
-  { id: 'shoes-boots', name: 'Shoes & Boots', description: 'Scuffs, scratches, recoloring' },
-  { id: 'jackets-apparel', name: 'Jackets & Apparel', description: 'Repairs, conditioning, refinishing' },
-]
-
-const SERVICE_VISUALS = {
-  accessories: {
-    img: 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80',
-    icon: (
-      <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <rect x="2" y="7" width="20" height="14" rx="2" />
-        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-        <line x1="12" y1="12" x2="12" y2="16" />
-        <line x1="10" y1="14" x2="14" y2="14" />
-      </svg>
-    ),
-  },
-  footwear: {
-    img: 'https://images.unsplash.com/photo-1528701800489-20be3c55a1d5?w=800&q=80',
-    icon: (
-      <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <path d="M4 14c3 0 5-2 7-5 1 2 3 4 7 5v5H4v-5z" />
-        <path d="M4 19h14" />
-      </svg>
-    ),
-  },
-  apparel: {
-    img: 'https://images.unsplash.com/photo-1520975958225-7b7a3f3d6a25?w=800&q=80',
-    icon: (
-      <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <path d="M9 4l3 2 3-2 4 4-3 2v12H8V10L5 8l4-4z" />
-      </svg>
-    ),
-  },
-  default: {
-    img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80',
-    icon: (
-      <svg width="32" height="32" fill="none" stroke="var(--gold)" strokeWidth="1.6" viewBox="0 0 24 24">
-        <path d="M7 7h10l2 4-2 6H7l-2-6 2-4z" />
-        <path d="M9 7V5a3 3 0 0 1 6 0v2" />
-      </svg>
-    ),
-  },
-}
-
-function normalizeCategoryKey(name = '') {
-  return String(name).trim().toLowerCase()
-}
-
-function sanitizeCategoryLabel(label = '') {
-  const raw = String(label || '').trim()
-  const key = raw.toLowerCase()
-  if (!key) return raw
-  if (/(car|auto|vehicle|seat|bmw|mercedes|audi)/i.test(key)) return 'Leather essentials'
-  if (/(sofa|couch|furniture)/i.test(key)) return 'Leather essentials'
-  return raw
-}
-
-function getServiceVisual(name) {
-  const key = normalizeCategoryKey(name)
-  const visual = SERVICE_VISUALS[key] || SERVICE_VISUALS.default
-
-  return {
-    ...visual,
-    icon: SERVICE_VISUALS.default.icon,
+function getCategoryVisual(name = '') {
+  const key = String(name).toLowerCase()
+  if (/(bag|wallet|accessor)/i.test(key)) {
+    return 'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=900&q=80'
   }
+  if (/(small|goods|shoe|boot)/i.test(key)) {
+    return 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=900&q=80'
+  }
+  return 'https://images.unsplash.com/photo-1614179689702-355944cd0918?auto=format&fit=crop&w=900&q=80'
 }
 
 export default function Home() {
-  const [services, setServices] = useState([])
-  const [servicesReady, setServicesReady] = useState(false)
+  const [services, setServices] = useState(DEFAULT_SERVICES)
+  const [results, setResults] = useState([])
+  const visibleServices = services.slice(0, 3)
+  const serviceCount = Math.max(1, Math.min(visibleServices.length, 3))
 
   useEffect(() => {
     let alive = true
 
-    Promise.allSettled([getCategories(), getPortfolio({ page: 1, limit: 100 })])
+    Promise.allSettled([getCategories(), getPortfolio({ page: 1, limit: 6 })])
       .then(([categoriesResult, portfolioResult]) => {
         if (!alive) return
-        const categoriesData =
+
+        const categories =
           categoriesResult.status === 'fulfilled' && Array.isArray(categoriesResult.value.data)
             ? categoriesResult.value.data
             : []
-        const portfolioJson =
-          portfolioResult.status === 'fulfilled'
-            ? portfolioResult.value.data
-            : []
-        const works = Array.isArray(portfolioJson?.data)
-          ? portfolioJson.data
-          : Array.isArray(portfolioJson)
-            ? portfolioJson
-            : []
-        const sourceCategories = categoriesData.length > 0 ? categoriesData : DEFAULT_SERVICES
 
-        setServices(
-          sourceCategories.map((category) => {
-            const match = works.find(
-              (item) => normalizeCategoryKey(item.category) === normalizeCategoryKey(category.name)
-            )
+        const payload = portfolioResult.status === 'fulfilled' ? portfolioResult.value.data : null
+        const items = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []
 
-            return {
-              ...category,
-              imageUrl: category.img_categories || match?.after_url || match?.before_url || null,
-              displayName: sanitizeCategoryLabel(category.name),
-            }
-          })
-        )
-        setServicesReady(true)
+        if (categories.length) {
+          setServices(
+            categories.slice(0, 3).map((item) => ({
+              id: item.id || item.name,
+              name: item.name,
+              description: item.description || 'Thoughtful restoration for the leather pieces you use and love most.',
+              imageUrl: item.img_categories || getCategoryVisual(item.name),
+            }))
+          )
+        }
+
+        if (items.length) {
+          setResults(items.slice(0, 3))
+        }
       })
-      .catch(() => {
-        if (!alive) return
-        setServices(DEFAULT_SERVICES)
-        setServicesReady(true)
-      })
+      .catch(() => {})
 
     return () => {
       alive = false
@@ -192,466 +124,331 @@ export default function Home() {
   }, [])
 
   return (
-    <div style={{ background: '#121212', color: '#fff', fontFamily: 'Georgia, serif', overflowX: 'hidden' }}>
+    <div className="site-shell">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        :root {
-          --gold: #E17100;
-          --gold-light: #FFB900;
-          --gold-pale: #FEF3C6;
-          --bg: #121212;
-          --bg2: #1A1A1A;
-          --bg3: #0D0D0D;
-          --border: #2a2a2a;
-          --text-dim: #888;
-          --text-mid: #ccc;
-          --serif: 'Cormorant Garamond', Georgia, serif;
-          --sans: 'DM Sans', sans-serif;
+        .home-page {
+          background:
+            linear-gradient(180deg, rgba(239, 229, 217, 0.96), rgba(236, 224, 210, 0.98)),
+            var(--bg-main);
         }
-        html { scroll-behavior: smooth; }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(28px); }
-          to   { opacity: 1; transform: translateY(0); }
+        .hero-shell {
+          position: relative;
+          overflow: hidden;
+          min-height: 100svh;
+          background:
+            linear-gradient(90deg, rgba(17, 13, 11, 0.9) 0%, rgba(17, 13, 11, 0.74) 38%, rgba(17, 13, 11, 0.28) 68%, rgba(17, 13, 11, 0.04) 100%),
+            url('${HERO_BG}') center/cover no-repeat;
+          box-shadow: none;
         }
-
-        .btn-primary {
-          display: inline-flex; align-items: center; gap: 10px;
-          padding: 16px 36px;
-          background: var(--gold); color: #fff;
-          font-family: var(--sans); font-size: 13px; font-weight: 600;
-          text-transform: uppercase; letter-spacing: 1.5px;
-          border: none; border-radius: 4px; cursor: pointer; text-decoration: none;
-          transition: background 0.2s, transform 0.15s;
-          box-shadow: 0 8px 28px -6px rgba(200,100,0,0.5);
-        }
-        .btn-primary:hover { background: #c96000; transform: translateY(-1px); }
-        .btn-outline {
-          display: inline-flex; align-items: center; gap: 10px;
-          padding: 15px 36px;
-          background: transparent; color: var(--gold-light);
-          font-family: var(--sans); font-size: 13px; font-weight: 600;
-          text-transform: uppercase; letter-spacing: 1.5px;
-          border: 1.5px solid var(--gold); border-radius: 4px; cursor: pointer; text-decoration: none;
-          transition: background 0.2s;
-        }
-        .btn-outline:hover { background: rgba(225,113,0,0.1); }
-
-        .svc-row {
+        .hero-grid {
+          width: min(1160px, calc(100vw - 40px));
+          min-height: 100svh;
+          margin: 0 auto;
+          padding-top: calc(78px + var(--safe-area-top, 0px));
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+          align-items: center;
         }
-        .svc-card {
-          position: relative; overflow: hidden; flex: 1;
-          min-height: 188px;
-          border-right: 1px solid var(--border);
-          padding: 18px 22px 14px;
-          transition: background 0.3s;
+        .hero-copy {
+          padding: clamp(34px, 5vw, 58px);
+          display: grid;
+          gap: 22px;
+          color: #f4eadf;
+          max-width: 640px;
+          padding-left: clamp(28px, 4vw, 44px);
+          padding-right: clamp(24px, 3vw, 34px);
+          border-radius: 0;
+          background: linear-gradient(135deg, rgba(17, 13, 11, 0.7), rgba(17, 13, 11, 0.22));
+          box-shadow: none;
+          backdrop-filter: blur(10px);
         }
-        .svc-card:last-child { border-right: none; }
-        .svc-bg {
-          position: absolute; inset: 0;
-          background-size: cover; background-position: center;
-          opacity: 0; transition: opacity 0.5s ease;
+        .hero-copy .section-title {
+          color: #fff8f1;
+          max-width: 520px;
+          text-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+          font-size: clamp(3.6rem, 5.2vw, 5.2rem);
         }
-        .svc-card:hover .svc-bg { opacity: 0.18; }
-        .svc-content { position: relative; z-index: 1; }
-        .svc-card--placeholder .svc-content {
-          opacity: 0.55;
+        .hero-copy .section-copy {
+          color: rgba(255, 246, 236, 0.94);
+          max-width: 540px;
+          font-size: 1.08rem;
         }
-        .svc-skeleton {
-          background: linear-gradient(90deg, rgba(42,42,42,0.9) 0%, rgba(62,62,62,0.95) 50%, rgba(42,42,42,0.9) 100%);
-          background-size: 220% 100%;
-          animation: shimmer 1.4s ease-in-out infinite;
+        .hero-copy .premium-chip {
+          background: rgba(198, 169, 107, 0.22);
+          color: #f6e8d5;
+          border: 1px solid rgba(198, 169, 107, 0.24);
         }
-        @keyframes shimmer {
-          0% { background-position: 100% 0; }
-          100% { background-position: -100% 0; }
+        .hero-actions {
+          display: flex;
+          gap: 14px;
+          flex-wrap: wrap;
         }
-        .svc-title {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
+        .hero-note {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: rgba(255, 246, 236, 0.9);
+          font-size: 0.98rem;
+        }
+        .hero-note::before {
+          content: '';
+          width: 44px;
+          height: 1px;
+          background: linear-gradient(90deg, rgba(198, 169, 107, 0.9), transparent);
+        }
+        .services-grid,
+        .results-grid {
+          display: grid;
+          gap: 22px;
+          align-items: stretch;
+        }
+        .services-grid {
+          grid-template-columns: repeat(var(--service-count, 3), minmax(0, 1fr));
+        }
+        .results-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .service-card,
+        .result-card {
+          height: 100%;
           overflow: hidden;
-          text-wrap: balance;
-          overflow-wrap: anywhere;
-          font-size: clamp(24px, 1.5vw, 28px) !important;
-          line-height: 1.16 !important;
+          background: #1d1713;
+          border: 0 !important;
+          outline: 0;
+          box-shadow: 0 18px 34px rgba(42, 29, 20, 0.08);
         }
-        .svc-desc {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
+        .service-card {
+          text-decoration: none;
+          transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+        }
+        .service-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 22px 40px rgba(42, 29, 20, 0.12);
+        }
+        .service-card__image,
+        .result-panel {
           overflow: hidden;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-          font-size: 15px !important;
-          line-height: 1.5 !important;
+          background: transparent;
+          line-height: 0;
         }
-        .learn-link {
-          display: inline-flex; align-items: center; gap: 6px;
+        .service-card__image {
+          aspect-ratio: 4 / 5;
+        }
+        .service-card__image img,
+        .result-panel img {
           width: 100%;
-          justify-content: flex-end;
-          font-family: var(--sans); font-size: 14px; font-weight: 500;
-          color: var(--gold-light); text-decoration: none; transition: gap 0.2s;
-        }
-        .svc-card:hover .learn-link { gap: 10px; }
-        .home-hero__title {
-          overflow-wrap: normal;
-          word-break: normal;
-        }
-        .home-hero__title-line {
+          height: 100%;
+          object-fit: cover;
           display: block;
-          white-space: nowrap;
+          transform: scale(1.01);
+          backface-visibility: hidden;
         }
-
-        .why-grid {
+        .service-card__content,
+        .result-card__content {
+          padding: 24px;
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+        .service-card__content {
+          background: linear-gradient(180deg, #201812 0%, #17110d 100%);
+        }
+        .service-card__content h3,
+        .result-card__content h3 {
+          margin: 0;
+          font-family: var(--font-display);
+          font-size: 1.95rem;
+          line-height: 1;
+          color: #fff7ef;
+        }
+        .service-card__content p,
+        .result-card__content p {
+          margin: 0;
+          color: rgba(255, 244, 232, 0.82);
+          line-height: 1.72;
+        }
+        .service-card__content .premium-chip,
+        .result-card__content .premium-chip {
+          background: rgba(198, 169, 107, 0.14);
+          color: #f7e6cd;
+        }
+        .result-pair {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
           gap: 0;
-          max-width: 1160px;
+          padding: 0;
+          background: transparent;
+        }
+        .result-panel {
+          position: relative;
+          aspect-ratio: 4 / 5;
+          border-radius: 0;
+        }
+        .result-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          min-height: 30px;
+          padding: 0 12px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          background: rgba(255, 247, 239, 0.88);
+          color: #1a1410;
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+        .result-panel:last-child .result-badge {
+          left: auto;
+          right: 12px;
+          background: rgba(198, 169, 107, 0.92);
+          color: #fff;
+        }
+        .cta-panel {
+          background: #201812;
+          border: 1px solid rgba(198, 169, 107, 0.18);
+          padding: clamp(30px, 5vw, 54px);
+          text-align: center;
+          display: grid;
+          gap: 16px;
+        }
+        .cta-panel .section-title {
+          color: #f4eadf;
+        }
+        .cta-panel .section-copy {
+          color: rgba(244, 234, 223, 0.72);
           margin: 0 auto;
         }
-        .why-col {
-          padding: 0 32px;
-        }
-        .why-col:first-child { padding-left: 32px; }
-        .why-col:last-child { padding-right: 0; }
-        .why-col--numbered {
-          display: grid;
-          grid-template-columns: 52px minmax(0, 1fr);
-          column-gap: 14px;
-          align-items: start;
-          min-height: 0;
-        }
-        .why-col__num {
-          font-family: var(--serif);
-          font-size: 72px;
-          color: rgba(225,113,0,0.15);
-          line-height: 0.82;
-          transform: translateY(8px);
-        }
-        .why-col__content {
-          min-width: 0;
-        }
-
-        .bullet-list { list-style: none; }
-        .bullet-list li {
-          display: flex; align-items: flex-start; gap: 14px;
-          padding: 13px 0;
-          font-family: var(--sans); font-size: 15px; color: var(--text-mid);
-          border-bottom: 1px solid var(--border);
-        }
-        .bullet-list li:last-child { border-bottom: none; }
-        .bullet-dot {
-          width: 8px; height: 8px; border-radius: 50%;
-          background: var(--gold); flex-shrink: 0; margin-top: 6px;
-        }
-
-        @media (max-width: 960px) {
-          .why-grid { grid-template-columns: 1fr 1fr; }
-          .why-col { padding: 0 20px 32px 0 !important; margin-bottom: 32px; }
-          .why-col:nth-child(2n) { padding-left: 20px !important; padding-right: 0 !important; }
-          .why-col__num {
-            font-size: 68px;
-            transform: translateY(6px);
+        @media (max-width: 980px) {
+          .hero-grid,
+          .services-grid,
+          .results-grid {
+            grid-template-columns: 1fr;
           }
-          .craft-flex, .commercial-flex { flex-direction: column !important; }
-          .svc-row { grid-template-columns: 1fr !important; }
-          .svc-card { border-right: none; border-bottom: 1px solid var(--border); min-height: 156px; padding: 12px 16px 10px; }
-          .svc-card:last-child { border-bottom: none; }
-          .svc-content h3 { font-size: 20px !important; }
-          .svc-content p { font-size: 14px !important; margin-bottom: 8px !important; }
-        }
-        @media (min-width: 601px) and (max-width: 1100px) {
-          .home-hero {
-            height: min(860px, 88vh) !important;
+          .hero-shell {
+            min-height: auto;
           }
-          .home-hero__content {
-            top: 61%;
-            bottom: auto !important;
-            transform: translateY(-50%);
-            padding: 0 clamp(34px, 5vw, 56px) !important;
+          .hero-grid {
+            min-height: auto;
+            width: min(100%, calc(100vw - 32px));
+            padding-top: calc(90px + var(--safe-area-top, 0px));
+            padding-bottom: 42px;
           }
-          .home-hero__inner {
-            max-width: 560px !important;
-          }
-          .home-hero__title {
-            font-size: clamp(66px, 8.5vw, 82px) !important;
-            line-height: 0.98 !important;
-            margin-bottom: 20px !important;
-          }
-          .home-hero__text {
-            font-size: 18px !important;
-            line-height: 1.6 !important;
-            max-width: 440px !important;
-            margin-bottom: 30px !important;
-          }
-          .home-hero__actions {
-            margin-top: 10px;
-          }
-        }
-        @media (min-width: 821px) and (max-width: 1280px) {
-          .home-hero__inner {
-            max-width: 860px !important;
-          }
-          .home-hero__title {
-            font-size: clamp(54px, 6vw, 74px) !important;
-            line-height: 1.04 !important;
-          }
-        }
-        @media (max-width: 600px) {
-          .home-hero {
-            height: 64vh !important;
-            min-height: 520px;
-          }
-          .home-hero__content {
-            top: 58%;
-            bottom: auto !important;
-            transform: translateY(-50%);
-            padding: 0 20px !important;
-            text-align: center;
-          }
-          .home-hero__inner {
-            max-width: 100% !important;
-            margin: 0 auto;
-            text-align: center;
-          }
-          .home-hero__title {
-            font-size: clamp(35px, 9vw, 42px) !important;
-            line-height: 1.02 !important;
-            margin-bottom: 14px !important;
-            margin-left: auto;
-            margin-right: auto;
-          }
-          .home-hero__text {
-            font-size: 13px !important;
-            line-height: 1.55 !important;
-            margin: 0 auto 20px !important;
-            max-width: 290px !important;
-          }
-          .home-hero__actions {
-            flex-direction: column;
-            align-items: center;
-            gap: 10px !important;
-          }
-          .btn-primary,
-          .btn-outline {
-            width: min(100%, 220px);
-            justify-content: center;
-            padding: 12px 16px !important;
-            font-size: 12px !important;
-          }
-          .why-grid { grid-template-columns: 1fr; }
-          .why-col { padding: 0 0 28px 0 !important; margin-bottom: 28px; }
-          .why-col:nth-child(2n) { padding-left: 0 !important; }
-          .why-col--numbered {
-            grid-template-columns: 42px minmax(0, 1fr);
-            column-gap: 10px;
-          }
-          .why-col__num {
-            font-size: 64px !important;
-            transform: translateY(4px);
-          }
-          .svc-row { grid-template-columns: 1fr !important; }
-          .svc-card {
-            min-height: 142px;
-            padding: 10px 14px 8px;
-            border-bottom: 1px solid var(--border);
-          }
-          .svc-bg { display: none; }
-          .svc-content svg { width: 20px; height: 20px; margin-bottom: 8px; }
-          .svc-content h3 { font-size: 19px !important; line-height: 1.16 !important; margin-bottom: 4px !important; }
-          .svc-content p { font-size: 13px !important; line-height: 1.45 !important; margin-bottom: 10px !important; }
-          .learn-link {
-            width: 100%;
-            justify-content: flex-end;
-            font-size: 11px !important;
-            letter-spacing: 0.04em;
+          .hero-copy {
+            padding-left: clamp(24px, 5vw, 30px);
+            padding-right: clamp(20px, 5vw, 26px);
+            max-width: none;
           }
         }
       `}</style>
 
-      <section className="home-hero" style={{ position: 'relative', height: 'min(920px, 93vh)', overflow: 'hidden' }}>
-        <img
-          src={heroImg}
-          alt="leather craftsman"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(13,13,13,0.88) 0%, rgba(13,13,13,0.45) 60%, rgba(13,13,13,0.1) 100%)' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(13,13,13,0.5) 0%, transparent 40%, rgba(13,13,13,0.8) 100%)' }} />
+      <div className="home-page">
+        <section className="hero-shell">
+          <div className="hero-grid">
+            <Reveal className="hero-copy">
+              <div className="premium-chip">Leather Bags & Wallets</div>
+              <h1 className="section-title">Professional leather restoration</h1>
+              <p className="section-copy">
+                We restore handbags, wallets, and favorite leather accessories with careful detail work, natural color balance, and a premium finish that feels elegant instead of overworked.
+              </p>
+              <div className="hero-actions">
+                <a className="premium-button" href="/contact">Send Photo for Free Quote</a>
+                <Link className="premium-button-outline" to="/portfolio">View Our Works</Link>
+              </div>
+              <div className="hero-note">Focused on handbags, wallets, and everyday leather favorites</div>
+            </Reveal>
+          </div>
+        </section>
 
-        <div
-          className="home-hero__content"
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '0 clamp(24px, 6vw, 100px) clamp(120px, 12vw, 170px)',
-          }}
-        >
-          <div className="home-hero__inner" style={{ maxWidth: 680 }}>
-            <h1
-              className="home-hero__title"
-              style={{
-                opacity: 0,
-                animation: 'fadeUp 0.8s 0.3s forwards',
-                fontFamily: 'var(--serif)',
-                fontSize: 'clamp(44px, 6vw, 82px)',
-                fontWeight: 500,
-                lineHeight: 1.12,
-                color: '#fff',
-                marginBottom: 20,
-              }}
-            >
-              <span className="home-hero__title-line">The Master Art of</span>
-              <span className="home-hero__title-line">Leather Restoration</span>
-            </h1>
-            <p
-              className="home-hero__text"
-              style={{
-                opacity: 0,
-                animation: 'fadeUp 0.8s 0.5s forwards',
-                fontFamily: 'var(--sans)',
-                fontSize: 16,
-                fontWeight: 300,
-                color: 'rgba(220,220,220,0.85)',
-                lineHeight: 1.65,
-                marginBottom: 40,
-                maxWidth: 500,
-              }}
-            >
-              Premium craftsmanship meets timeless elegance. We restore luxury leather goods with precision and care.
-            </p>
-            <div
-              className="home-hero__actions"
-              style={{ opacity: 0, animation: 'fadeUp 0.8s 0.65s forwards', display: 'flex', gap: 16, flexWrap: 'wrap' }}
-            >
-              <Link to="/portfolio" className="btn-primary">
-                View Our Works →
-              </Link>
-              <a href="https://wa.me/13125550199" target="_blank" rel="noopener noreferrer" className="btn-outline">
-                Contact Expert
-              </a>
+        <section className="section-block">
+          <div className="site-container">
+            <div className="section-heading">
+              <div className="section-kicker">Categories</div>
+              <h2 className="section-title" style={{ maxWidth: 760 }}>Choose the category you want restored</h2>
+              <p className="section-copy">
+                Start with the category that matches your piece, then go straight to our works and see real restoration examples.
+              </p>
+            </div>
+
+            <div className="services-grid" style={{ '--service-count': serviceCount }}>
+              {visibleServices.map((service, index) => (
+                <Reveal key={service.id || service.name} delay={index * 80}>
+                  <Link
+                    className="surface-card service-card"
+                    to={`/portfolio?category=${encodeURIComponent(service.name)}`}
+                  >
+                    <div className="service-card__image">
+                      <img src={service.imageUrl || getCategoryVisual(service.name)} alt={service.name} />
+                    </div>
+                    <div className="service-card__content">
+                      <div className="premium-chip">{service.name}</div>
+                      <h3>{service.name}</h3>
+                      <p>{service.description}</p>
+                    </div>
+                  </Link>
+                </Reveal>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-        <div className="svc-row">
-          {!servicesReady
-            ? [...Array(3)].map((_, index) => (
-                <div key={index} className="svc-card svc-card--placeholder" style={{ pointerEvents: 'none' }}>
-                  <div className="svc-content">
-                    <div className="svc-skeleton" style={{ width: 32, height: 32, borderRadius: 6, marginBottom: 14 }} />
-                    <div className="svc-skeleton" style={{ width: '68%', height: 24, borderRadius: 4, marginBottom: 8 }} />
-                    <div className="svc-skeleton" style={{ width: '86%', height: 15, borderRadius: 4, marginBottom: 8 }} />
-                    <div className="svc-skeleton" style={{ width: '58%', height: 15, borderRadius: 4, marginBottom: 26 }} />
-                    <div className="svc-skeleton" style={{ width: 108, height: 14, borderRadius: 4 }} />
-                  </div>
-                </div>
-              ))
-            : services.map((service) => {
-                const visual = getServiceVisual(service.name)
-                const categoryQuery = encodeURIComponent(service.name)
-                const backgroundImage = service.imageUrl || visual.img
-
-                return (
-                  <div key={service.id ?? service.name} className="svc-card">
-                    <div className="svc-bg" style={{ backgroundImage: `url(${backgroundImage})` }} />
-                    <div className="svc-content">
-                      <div style={{ marginBottom: 14 }}>{visual.icon}</div>
-                      <h3 className="svc-title" style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#fff', marginBottom: 6 }}>
-                        {service.displayName || service.name}
-                      </h3>
-                      <p className="svc-desc" style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.45 }}>
-                        {service.description || 'Premium leather restoration tailored to your category.'}
-                      </p>
-                      <Link to={`/portfolio?category=${categoryQuery}`} className="learn-link">
-                        Learn More →
-                      </Link>
-                    </div>
-                  </div>
-                )
-              })}
-        </div>
-      </section>
-
-      <section style={{ background: 'var(--bg)', padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,100px)' }}>
-        <div className="craft-flex" style={{ display: 'flex', gap: 80, alignItems: 'center', maxWidth: 1160, margin: '0 auto' }}>
-          <Reveal style={{ flex: '0 0 auto', width: 'min(520px, 100%)' }}>
-            <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', aspectRatio: '4/3' }}>
-              <img
-                src={crafterImg}
-                alt="leather restoration"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.6s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.04)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
-              />
+        <section className="section-block">
+          <div className="site-container">
+            <div className="section-heading">
+              <div className="section-kicker">Our Works</div>
+              <h2 className="section-title" style={{ maxWidth: 760 }}>Real restoration results for bags, wallets, and leather accessories</h2>
+              <p className="section-copy">
+                A few recent examples that show how damaged leather can be brought back with a richer and more premium final look.
+              </p>
             </div>
-          </Reveal>
-          <Reveal delay={120} style={{ flex: 1 }}>
-            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(32px,4vw,52px)', fontWeight: 500, color: '#fff', lineHeight: 1.15, marginBottom: 28 }}>
-              The Craft of Restoration
-            </h2>
-            <p style={{ fontFamily: 'var(--sans)', fontSize: 16, color: 'var(--text-mid)', lineHeight: 1.78, marginBottom: 20 }}>
-              At Prime Leather Repair, we treat every piece as a work of art. Our master craftsmen bring decades of combined experience to restore your valued leather items to their original glory.
-            </p>
-            <p style={{ fontFamily: 'var(--sans)', fontSize: 16, color: 'var(--text-dim)', lineHeight: 1.78, marginBottom: 40 }}>
-              From color matching to texture restoration, we use only premium materials and time-tested techniques to ensure lasting results.
-            </p>
-            <Link to="/portfolio" className="btn-primary">See Our Portfolio</Link>
-          </Reveal>
-        </div>
-      </section>
 
-      <section style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,100px)' }}>
-        <Reveal style={{ textAlign: 'center', marginBottom: 72 }}>
-          <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(30px,4vw,50px)', fontWeight: 500, color: '#fff', marginBottom: 16 }}>
-            Why Choose Prime Leather Repair
-          </h2>
-          <p style={{ fontFamily: 'var(--sans)', fontSize: 15, color: 'var(--text-dim)' }}>
-            Excellence in every stitch, dedication in every detail
-          </p>
-        </Reveal>
+            <div className="results-grid">
+              {results.map((item, index) => (
+                <Reveal key={item.id || `${item.title}-${index}`} delay={index * 80}>
+                  <article className="surface-card result-card">
+                    <div className="result-pair">
+                      <div className="result-panel">
+                        <img src={item.before_url} alt={`${item.title} before`} />
+                        <span className="result-badge">Before</span>
+                      </div>
+                      <div className="result-panel">
+                        <img src={item.after_url} alt={`${item.title} after`} />
+                        <span className="result-badge">After</span>
+                      </div>
+                    </div>
+                    <div className="result-card__content">
+                      <div className="premium-chip">{item.category || 'Leather Repair'}</div>
+                      <h3>{item.title || 'Damaged -> Restored'}</h3>
+                      <p>{item.description || 'Careful restoration with stronger color, cleaner finish, and a more premium result.'}</p>
+                    </div>
+                  </article>
+                </Reveal>
+              ))}
+            </div>
 
-        <div className="why-grid">
-          {WHY_ITEMS.map((item, i) => (
-            <Reveal key={item.num} delay={i * 80}>
-              <div className="why-col why-col--numbered">
-                <div className="why-col__num">{item.num}</div>
-                <div className="why-col__content">
-                  <h3
-                    style={{
-                      fontFamily: 'var(--serif)',
-                      fontSize: 22,
-                      fontWeight: 500,
-                      color: 'var(--gold-light)',
-                      marginBottom: 14,
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {item.title}
-                  </h3>
+            <div style={{ marginTop: 28, textAlign: 'center' }}>
+              <Link className="premium-button-outline" to="/portfolio">See More Works</Link>
+            </div>
+          </div>
+        </section>
 
-                  <p
-                    style={{
-                      fontFamily: 'var(--sans)',
-                      fontSize: 14,
-                      color: 'var(--text-dim)',
-                      lineHeight: 1.75,
-                    }}
-                  >
-                    {item.desc}
-                  </p>
-                </div>
+        <section className="section-block" style={{ paddingTop: 0 }}>
+          <div className="site-container">
+            <div className="surface-card cta-panel">
+              <div className="section-kicker" style={{ justifySelf: 'center' }}>Get Started</div>
+              <h2 className="section-title" style={{ maxWidth: 720, margin: '0 auto' }}>Send a photo and get a quote for your leather piece</h2>
+              <p className="section-copy" style={{ maxWidth: 640 }}>
+                Share a few pictures of your handbag, wallet, or accessory and we will guide you with a quick quote and the easiest next step.
+              </p>
+              <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <a className="premium-button" href="/contact">Get Your Free Quote</a>
+                <Link className="premium-button-outline" to="/reviews">Read Reviews</Link>
               </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   )
 }

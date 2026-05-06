@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 const NAV_LINKS = [
   { label: 'Home', path: '/' },
   { label: 'Our Works', path: '/portfolio' },
   { label: 'Reviews', path: '/reviews' },
-  { label: 'Contacts', path: '/contact' },
+  { label: 'Contact', path: '/contact' },
 ]
 
 export function Navbar() {
@@ -14,7 +14,7 @@ export function Navbar() {
   const location = useLocation()
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40)
+    const onScroll = () => setScrolled(window.scrollY > 24)
     window.addEventListener('scroll', onScroll)
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
@@ -28,25 +28,40 @@ export function Navbar() {
 
   return (
     <>
-      <header className="site-navbar" style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        background: scrolled ? 'rgba(13,13,13,0.98)' : 'rgba(13,13,13,0.85)',
-        borderBottom: '1px solid rgba(42,42,42,0.6)',
-        backdropFilter: 'blur(14px)',
-        padding: 'var(--safe-area-top, 0px) clamp(24px, 6vw, 100px) 0',
-        height: 'calc(68px + var(--safe-area-top, 0px))',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        transition: 'background 0.3s, height 0.3s',
-      }}>
-        <Link to="/" className="site-navbar__brand" style={{
-          fontFamily: 'var(--serif)',
-          fontSize: 21,
-          fontWeight: 400,
-          color: 'var(--gold-pale)',
-          textDecoration: 'none',
-          position: 'relative',
-          zIndex: 102,
-        }}>
+      <header
+        className="site-navbar"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          height: 'calc(78px + var(--safe-area-top, 0px))',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 'var(--safe-area-top, 0px) clamp(20px, 5vw, 56px) 0',
+          background: scrolled ? 'rgba(234, 223, 206, 0.94)' : 'rgba(228, 215, 198, 0.86)',
+          borderBottom: '1px solid rgba(198, 169, 107, 0.18)',
+          backdropFilter: 'blur(18px)',
+          transition: 'background 0.25s ease, box-shadow 0.25s ease',
+          boxShadow: scrolled ? '0 14px 30px rgba(26, 26, 26, 0.05)' : 'none',
+        }}
+      >
+        <Link
+          to="/"
+          className="site-navbar__brand"
+          style={{
+            textDecoration: 'none',
+            fontFamily: 'var(--font-display)',
+            fontSize: 24,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.02em',
+            position: 'relative',
+            zIndex: 102,
+          }}
+        >
           Prime Leather Repair
         </Link>
 
@@ -62,27 +77,40 @@ export function Navbar() {
           <span className={`site-navbar__toggle-line${menuOpen ? ' is-open' : ''}`} />
         </button>
 
-        <nav className={`site-navbar__links${menuOpen ? ' is-open' : ''}`} style={{ display: 'flex', gap: 36 }}>
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.label}
-              to={l.path}
-              className="site-navbar__link"
-              onClick={() => setMenuOpen(false)}
-              style={{
-                fontFamily: 'var(--sans)',
-                fontSize: '13px',
-                fontWeight: 500,
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-                color: location.pathname === l.path ? 'var(--gold-light)' : 'var(--text-mid)',
-                textDecoration: 'none',
-                transition: 'color 0.2s',
-              }}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <nav className={`site-navbar__links${menuOpen ? ' is-open' : ''}`} style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          {NAV_LINKS.map((link) => {
+            const active = location.pathname === link.path
+
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                className="site-navbar__link"
+                onClick={() => setMenuOpen(false)}
+                style={{
+                  textDecoration: 'none',
+                  padding: '10px 14px',
+                  borderRadius: 999,
+                  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontSize: '0.92rem',
+                  fontWeight: 500,
+                  background: active ? 'linear-gradient(135deg, rgba(198, 169, 107, 0.18), rgba(232, 199, 200, 0.14))' : 'transparent',
+                  border: active ? '1px solid rgba(198, 169, 107, 0.22)' : '1px solid transparent',
+                }}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
+
+          <a
+            href="/contact"
+            className="premium-button"
+            style={{ minHeight: 46, padding: '0 20px' }}
+            onClick={() => setMenuOpen(false)}
+          >
+            Send Photo
+          </a>
         </nav>
       </header>
       <div className={`site-navbar__backdrop${menuOpen ? ' is-open' : ''}`} onClick={() => setMenuOpen(false)} />

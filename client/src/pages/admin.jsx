@@ -1036,7 +1036,7 @@ export default function Admin() {
     const croppedFile = await requestCrop(normalized.file, {
       aspect: 4 / 5,
       title: `Adjust ${label}`,
-      helper: 'This frame matches the Before / After image area shown on the site.',
+      helper: 'This frame matches the Our Works image area shown on the site.',
       maxOutputSide: 2000,
       outputType: getCanvasOutputType(normalized.file),
     })

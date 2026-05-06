@@ -35,24 +35,22 @@ function FloatingSocials() {
     }
   }, [])
 
-  const phoneDigits = useMemo(
-    () => String(contact.phone || '').replace(/\D/g, ''),
-    [contact.phone]
-  )
-
+  const phoneDigits = useMemo(() => String(contact.phone || '').replace(/\D/g, ''), [contact.phone])
   const whatsappHref = contact.whatsapp || (phoneDigits ? `https://wa.me/${phoneDigits}` : '')
   const telegramHref = contact.telegram || ''
 
   return (
-    <div className="floating-socials" style={{
-      position: 'fixed',
-      right: 20,
-      bottom: 'calc(20px + var(--safe-area-bottom, 0px))',
-      zIndex: 220,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 12,
-    }}>
+    <div
+      className="floating-socials"
+      style={{
+        position: 'fixed',
+        right: 20,
+        bottom: 'calc(20px + var(--safe-area-bottom, 0px))',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
       {whatsappHref ? (
         <a
           href={whatsappHref}
@@ -63,14 +61,20 @@ function FloatingSocials() {
             width: 58,
             height: 58,
             borderRadius: '50%',
-            background: '#06C755',
+            background: 'rgba(255,255,255,0.96)',
+            border: '1px solid rgba(232, 199, 200, 0.42)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 10px 28px rgba(0,0,0,0.25)',
+            boxShadow: '0 18px 34px rgba(26, 26, 26, 0.12)',
+            backdropFilter: 'blur(14px)',
           }}
         >
-          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style={{ width: 28, height: 28 }} />
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+            alt="WhatsApp"
+            style={{ width: 28, height: 28 }}
+          />
         </a>
       ) : null}
       {telegramHref ? (
@@ -83,16 +87,67 @@ function FloatingSocials() {
             width: 58,
             height: 58,
             borderRadius: '50%',
-            background: '#2563eb',
+            background: 'rgba(255,255,255,0.96)',
+            border: '1px solid rgba(214, 209, 230, 0.52)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 10px 28px rgba(0,0,0,0.25)',
+            boxShadow: '0 18px 34px rgba(26, 26, 26, 0.12)',
+            backdropFilter: 'blur(14px)',
           }}
         >
-          <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" alt="Telegram" style={{ width: 28, height: 28 }} />
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"
+            alt="Telegram"
+            style={{ width: 28, height: 28 }}
+          />
         </a>
       ) : null}
+    </div>
+  )
+}
+
+function StickyMobileCta() {
+  const [contact, setContact] = useState({
+    phone: '',
+    whatsapp: '',
+  })
+
+  useEffect(() => {
+    let alive = true
+
+    getContact()
+      .then(({ data }) => {
+        if (!alive) return
+        setContact({
+          phone: data?.phone || '',
+          whatsapp: data?.messenger_whatsapp || '',
+        })
+      })
+      .catch(() => {})
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const phoneDigits = String(contact.phone || '').replace(/\D/g, '')
+  const whatsappHref = contact.whatsapp || (phoneDigits ? `https://wa.me/${phoneDigits}` : '')
+
+  return (
+    <div className="sticky-mobile-cta">
+      {whatsappHref ? (
+        <a className="premium-button-outline" href={whatsappHref} target="_blank" rel="noreferrer">
+          Text Us Now
+        </a>
+      ) : (
+        <a className="premium-button-outline" href="/contact">
+          Contact Us
+        </a>
+      )}
+      <a className="premium-button" href="/contact">
+        Free Quote
+      </a>
     </div>
   )
 }
@@ -114,12 +169,13 @@ function PublicLayout() {
       <Navbar />
       <Outlet />
       <FloatingSocials />
+      <StickyMobileCta />
       <Footer />
     </>
   )
 }
 
-function App() {
+export default function App() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
@@ -132,5 +188,3 @@ function App() {
     </Routes>
   )
 }
-
-export default App

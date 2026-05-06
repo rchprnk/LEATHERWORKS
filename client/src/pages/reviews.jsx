@@ -1,253 +1,162 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Star, MessageSquare } from "lucide-react";
+import { MessageSquare, Star } from 'lucide-react'
 
-// Макет даних для майбутнього Google Maps API
 const reviewsData = [
   {
     id: 1,
-    name: "Michael Johnson",
-    service: "Leather Bag Restoration",
+    name: 'Michael Johnson',
+    service: 'Car Seat Restoration',
     rating: 5,
-    date: "March 2026",
-    text: "Absolutely incredible work! My leather bag looked brand new after Prime Leather Repair worked their magic. The color matching was perfect, and the craftsmanship is top-notch. Highly recommend!",
-    verified: "Verified via WhatsApp"
+    date: 'March 2026',
+    text: "Absolutely incredible work. My seats looked fresh again and the finish felt far more refined than I expected.",
+    verified: 'Verified via WhatsApp',
   },
   {
     id: 2,
-    name: "Sarah Williams",
-    service: "Designer Handbag Repair",
+    name: 'Sarah Williams',
+    service: 'Designer Handbag Repair',
     rating: 5,
-    date: "February 2026",
-    text: "I was devastated when my Hermès bag got scratched. Prime Leather Repair restored it beautifully - you can't even tell it was damaged. Their attention to detail is remarkable. Thank you!",
-    verified: "Verified via WhatsApp"
+    date: 'February 2026',
+    text: "My handbag came back looking elegant and beautifully restored. The color work was subtle and premium.",
+    verified: 'Verified via WhatsApp',
   },
   {
     id: 3,
-    name: "David Chen",
-    service: "Leather Jacket Restoration",
+    name: 'David Chen',
+    service: 'Luxury Sofa Restoration',
     rating: 5,
-    date: "January 2026",
-    text: "My leather jacket has been in the family for decades. Prime Leather Repair brought it back to life with such care and precision. The conditioning treatment made it feel brand new. Exceptional service!",
-    verified: "Verified via WhatsApp"
+    date: 'January 2026',
+    text: 'Our family sofa looked refreshed without losing its character. It felt like the right mix of care and craftsmanship.',
+    verified: 'Verified via WhatsApp',
   },
   {
     id: 4,
-    name: "Emma Thompson",
-    service: "Footwear Restoration",
+    name: 'Emma Thompson',
+    service: 'Footwear Restoration',
     rating: 5,
-    date: "January 2026",
-    text: "My favorite designer boots were worn out and I thought I'd have to replace them. Prime Leather Repair did an amazing restoration job - the leather looks fantastic and feels even better. Will definitely use them again!",
-    verified: "Verified via WhatsApp"
-  }
-];
+    date: 'January 2026',
+    text: 'I thought I had to replace my boots, but the repair made them feel stylish and wearable again.',
+    verified: 'Verified via WhatsApp',
+  },
+]
 
-function useReveal() {
-  const ref = useRef(null)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const node = ref.current
-    if (!node) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.14 }
-    )
-
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-
-  return [ref, visible]
-}
-
-function Reveal({ children, delay = 0, style: outerStyle = {} }) {
-  const [ref, visible] = useReveal()
-
+export default function Reviews() {
   return (
-    <div
-      ref={ref}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(30px)',
-        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
-        ...outerStyle,
-      }}
-    >
-      {children}
-    </div>
-  )
-}
-
-const Reviews = () => {
-  return (
-    <div style={{ minHeight: '100vh', background: '#f6f2ea', color: '#121212' }}>
+    <div className="site-shell">
       <style>{`
-        .reviews-shell {
-          padding-left: clamp(24px, 6vw, 100px);
-          padding-right: clamp(24px, 6vw, 100px);
-        }
-        .reviews-stats {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 48px;
-          color: #fff;
-          flex-wrap: wrap;
+        .reviews-page {
+          background:
+            radial-gradient(circle at top right, rgba(214, 209, 230, 0.16), transparent 28%),
+            radial-gradient(circle at left center, rgba(232, 199, 200, 0.16), transparent 24%),
+            var(--bg-main);
         }
         .reviews-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 28px;
+          gap: 24px;
         }
-        .reviews-fab {
-          position: fixed;
-          right: 32px;
-          bottom: 32px;
-          z-index: 50;
+        .review-card {
+          padding: 28px;
+          display: grid;
+          gap: 18px;
+        }
+        .review-top {
           display: flex;
-          flex-direction: column;
-          gap: 12px;
+          justify-content: space-between;
+          gap: 16px;
+          align-items: flex-start;
         }
-        .reviews-fab-link {
+        .review-avatar {
           width: 52px;
           height: 52px;
           border-radius: 999px;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
-          transition: transform 0.2s ease;
+          background: linear-gradient(135deg, rgba(232, 199, 200, 0.54), rgba(214, 209, 230, 0.58));
+          font-weight: 700;
         }
-        .reviews-fab-link:hover {
-          transform: scale(1.08);
+        .review-name {
+          margin: 0 0 4px;
+          color: var(--text-primary);
+          font-weight: 700;
         }
-        @media (max-width: 980px) {
+        .review-service,
+        .review-text,
+        .review-meta {
+          margin: 0;
+          color: var(--text-secondary);
+          line-height: 1.74;
+        }
+        .review-stars {
+          display: flex;
+          gap: 4px;
+          align-items: center;
+        }
+        .review-meta {
+          display: flex;
+          justify-content: space-between;
+          gap: 16px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(26,26,26,0.08);
+          font-size: 0.92rem;
+        }
+        @media (max-width: 900px) {
           .reviews-grid {
             grid-template-columns: 1fr;
           }
         }
-        @media (max-width: 720px) {
-          .reviews-shell {
-            padding-left: 20px;
-            padding-right: 20px;
-          }
-          .reviews-fab {
-            right: 20px;
-            bottom: 20px;
-          }
-        }
       `}</style>
 
-      <section style={{ paddingTop: 132, paddingBottom: 72, background: '#121212', textAlign: 'center' }}>
-        <div className="reviews-shell" style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Reveal>
-            <h1 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(42px, 6vw, 68px)', color: '#fff', marginBottom: 16 }}>
-              Client Reviews
+      <div className="reviews-page">
+        <section className="section-block" style={{ paddingTop: 148 }}>
+          <div className="site-container" style={{ textAlign: 'center' }}>
+            <div className="section-kicker">Reviews</div>
+            <h1 className="section-title" style={{ maxWidth: 760, margin: '0 auto' }}>
+              Clients love the cleaner, more elegant results they get back
             </h1>
-            <p style={{ fontFamily: 'var(--sans)', color: '#9ca3af', maxWidth: 720, margin: '0 auto 44px', fontSize: 18, lineHeight: 1.6 }}>
-              See what our satisfied customers say about our premium leather restoration services
+            <p className="section-copy" style={{ maxWidth: 700, margin: '0 auto' }}>
+              A few words from people who wanted their handbags, wallets, boots, and favorite leather pieces to look softer, fresher, and beautifully restored instead of simply “patched.”
             </p>
-          </Reveal>
+          </div>
+        </section>
 
-          <Reveal delay={120}>
-            <div className="reviews-stats">
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ display: 'flex', gap: 4, marginBottom: 6, justifyContent: 'center' }}>
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={20} color="#f59e0b" fill="#f59e0b" />
-                  ))}
-                </div>
-                <p style={{ fontFamily: 'var(--sans)', fontSize: 30, fontWeight: 700 }}>5.0</p>
-                <p style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#737373', textTransform: 'uppercase', letterSpacing: '0.28em', marginTop: 6 }}>
-                  Average Rating
-                </p>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
-                  <MessageSquare size={40} color="#f59e0b" />
-                </div>
-                <p style={{ fontFamily: 'var(--sans)', fontSize: 30, fontWeight: 700 }}>200+</p>
-                <p style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#737373', textTransform: 'uppercase', letterSpacing: '0.28em', marginTop: 6 }}>
-                  Happy Clients
-                </p>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <section style={{ padding: '80px 0 110px' }}>
-        <div className="reviews-shell" style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div className="reviews-grid">
-            {reviewsData.map((review, index) => (
-              <Reveal key={review.id} delay={index * 90} style={{ height: '100%' }}>
-                <div 
-                  style={{
-                    background: '#fff',
-                    padding: 32,
-                    borderRadius: 20,
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
-                    border: '1px solid #f4efe7',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    minHeight: 280,
-                    height: '100%',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-                    <div style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: '50%',
-                      background: '#fef3c7',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#92400e',
-                      fontFamily: 'var(--sans)',
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}>
-                      {review.name.charAt(0)}
+        <section className="section-block" style={{ paddingTop: 0 }}>
+          <div className="site-container">
+            <div className="reviews-grid">
+              {reviewsData.map((review) => (
+                <article key={review.id} className="surface-card review-card">
+                  <div className="review-top">
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                      <div className="review-avatar">{review.name.charAt(0)}</div>
+                      <div>
+                        <p className="review-name">{review.name}</p>
+                        <p className="review-service">{review.service}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 style={{ fontFamily: 'var(--sans)', fontWeight: 700, color: '#171717', lineHeight: 1.2, marginBottom: 4 }}>{review.name}</h3>
-                      <p style={{ fontFamily: 'var(--sans)', fontSize: 12, color: '#737373' }}>{review.service}</p>
-                    </div>
+                    <div className="premium-chip">{review.date}</div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
-                    {[...Array(review.rating)].map((_, i) => (
-                      <Star key={i} size={16} color="#f59e0b" fill="#f59e0b" />
+                  <div className="review-stars">
+                    {[...Array(review.rating)].map((_, index) => (
+                      <Star key={index} size={16} color="#C6A96B" fill="#C6A96B" />
                     ))}
-                    <span style={{ fontFamily: 'var(--sans)', fontSize: 12, color: '#9ca3af', marginLeft: 8 }}>{review.date}</span>
                   </div>
 
-                  <p style={{ fontFamily: 'var(--sans)', color: '#404040', fontSize: 14, lineHeight: 1.75, marginBottom: 24, flexGrow: 1 }}>
-                    "{review.text}"
-                  </p>
+                  <p className="review-text">"{review.text}"</p>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 16, borderTop: '1px solid #f3f4f6' }}>
-                    <MessageSquare size={12} color="#9ca3af" />
-                    <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.18em' }}>
+                  <div className="review-meta">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <MessageSquare size={14} color="#C6A96B" />
                       {review.verified}
                     </span>
+                    <span>{review.service}</span>
                   </div>
-                </div>
-              </Reveal>
-            ))}
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-
+        </section>
+      </div>
     </div>
-  );
-};
-
-export default Reviews;
+  )
+}

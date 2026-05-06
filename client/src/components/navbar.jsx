@@ -53,16 +53,48 @@ export function Navbar() {
           className="site-navbar__brand"
           style={{
             textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 12,
             fontFamily: 'var(--font-display)',
-            fontSize: 24,
-            fontWeight: 600,
+            fontSize: 'clamp(1.75rem, 2.4vw, 2.35rem)',
+            fontWeight: 700,
             color: 'var(--text-primary)',
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.035em',
             position: 'relative',
             zIndex: 102,
           }}
         >
-          Prime Leather Repair
+          <span
+            className="site-navbar__logo"
+            aria-hidden="true"
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 13,
+              display: 'inline-grid',
+              placeItems: 'center',
+              flex: '0 0 auto',
+              overflow: 'hidden',
+              padding: 2,
+              background: '#f4eadf',
+              boxShadow: '0 12px 26px rgba(56, 39, 26, 0.18)',
+              border: '1px solid rgba(154, 113, 38, 0.28)',
+            }}
+          >
+            <img
+              src="/brand-logo.jpg"
+              alt=""
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'block',
+                borderRadius: 11,
+                objectFit: 'contain',
+              }}
+            />
+          </span>
+          <span>Prime Leather Repair</span>
         </Link>
 
         <button

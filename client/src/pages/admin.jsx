@@ -507,6 +507,32 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
   }
 
+  function drawBlurredCover(context, image, canvasWidth, canvasHeight) {
+    const tinyWidth = Math.max(24, Math.round(canvasWidth / 22))
+    const tinyHeight = Math.max(24, Math.round(canvasHeight / 22))
+    const tinyCanvas = document.createElement('canvas')
+    tinyCanvas.width = tinyWidth
+    tinyCanvas.height = tinyHeight
+    const tinyContext = tinyCanvas.getContext('2d', { alpha: false })
+
+    if (!tinyContext) {
+      drawImageCover(context, image, canvasWidth, canvasHeight)
+      return
+    }
+
+    tinyContext.imageSmoothingEnabled = true
+    tinyContext.imageSmoothingQuality = 'low'
+    drawImageCover(tinyContext, image, tinyWidth, tinyHeight)
+
+    context.imageSmoothingEnabled = true
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(tinyCanvas, 0, 0, tinyWidth, tinyHeight, 0, 0, canvasWidth, canvasHeight)
+    context.save()
+    context.globalAlpha = 0.45
+    context.drawImage(tinyCanvas, 0, 0, tinyWidth, tinyHeight, -canvasWidth * 0.03, -canvasHeight * 0.03, canvasWidth * 1.06, canvasHeight * 1.06)
+    context.restore()
+  }
+
   function drawImageContain(context, image, canvasWidth, canvasHeight) {
     const imageRatio = naturalSize.width / naturalSize.height
     const canvasRatio = canvasWidth / canvasHeight
@@ -552,10 +578,7 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
       const image = imageRef.current
       context.fillStyle = '#111'
       context.fillRect(0, 0, outputWidth, outputHeight)
-      context.save()
-      context.filter = 'blur(34px) saturate(1.08)'
-      drawImageCover(context, image, outputWidth, outputHeight)
-      context.restore()
+      drawBlurredCover(context, image, outputWidth, outputHeight)
       context.fillStyle = 'rgba(0,0,0,0.18)'
       context.fillRect(0, 0, outputWidth, outputHeight)
       drawImageContain(context, image, outputWidth, outputHeight)

@@ -83,7 +83,7 @@ export function Navbar() {
             }}
           >
             <img
-              src="/brand-logo.jpg"
+              src="/brand-logo-20260507.jpg"
               alt=""
               style={{
                 width: '100%',

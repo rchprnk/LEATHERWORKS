@@ -6,8 +6,6 @@ const UPLOAD_TIMEOUT_MS = 60_000
 const SAVE_TIMEOUT_MS = 30_000
 const WORK_IMAGE_MAX_BYTES = 15 * 1024 * 1024
 const WORK_IMAGE_TARGET_BYTES = Math.floor(14.5 * 1024 * 1024)
-const CATEGORY_IMAGE_MAX_BYTES = 2 * 1024 * 1024
-const CATEGORY_IMAGE_TARGET_BYTES = Math.floor(1.8 * 1024 * 1024)
 const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
 const IMAGE_INPUT_ACCEPT = 'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.bmp,.tif,.tiff,.svg'
@@ -446,6 +444,137 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     dragRef.current = null
   }
 
+  function getCenteredFrame(fill = 0.88) {
+    if (!imageWidth || !imageHeight) return { x: 0, y: 0, width: 0, height: 0 }
+    let nextWidth
+    let nextHeight
+
+    if (aspect >= 1) {
+      nextWidth = Math.min(imageWidth * fill, imageHeight * fill * aspect)
+      nextHeight = nextWidth / aspect
+    } else {
+      nextHeight = Math.min(imageHeight * fill, imageWidth * fill / aspect)
+      nextWidth = nextHeight * aspect
+    }
+
+    nextWidth = Math.max(80, Math.round(nextWidth))
+    nextHeight = Math.max(80, Math.round(nextHeight))
+
+    return {
+      width: nextWidth,
+      height: nextHeight,
+      x: imageLeft + Math.max(0, Math.round((imageWidth - nextWidth) / 2)),
+      y: imageTop + Math.max(0, Math.round((imageHeight - nextHeight) / 2)),
+    }
+  }
+
+  function resetFrame(fill = 0.88) {
+    setFrame(getCenteredFrame(fill))
+  }
+
+  function getAspectOutputSize() {
+    const maxOutputSide = request.config?.maxOutputSide || 1800
+    if (aspect >= 1) {
+      return {
+        width: maxOutputSide,
+        height: Math.max(1, Math.round(maxOutputSide / aspect)),
+      }
+    }
+    return {
+      width: Math.max(1, Math.round(maxOutputSide * aspect)),
+      height: maxOutputSide,
+    }
+  }
+
+  function drawImageCover(context, image, canvasWidth, canvasHeight) {
+    const imageRatio = naturalSize.width / naturalSize.height
+    const canvasRatio = canvasWidth / canvasHeight
+    let drawWidth = canvasWidth
+    let drawHeight = canvasHeight
+    let drawX = 0
+    let drawY = 0
+
+    if (imageRatio > canvasRatio) {
+      drawHeight = canvasHeight
+      drawWidth = drawHeight * imageRatio
+      drawX = (canvasWidth - drawWidth) / 2
+    } else {
+      drawWidth = canvasWidth
+      drawHeight = drawWidth / imageRatio
+      drawY = (canvasHeight - drawHeight) / 2
+    }
+
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+  }
+
+  function drawImageContain(context, image, canvasWidth, canvasHeight) {
+    const imageRatio = naturalSize.width / naturalSize.height
+    const canvasRatio = canvasWidth / canvasHeight
+    let drawWidth = canvasWidth
+    let drawHeight = canvasHeight
+    let drawX = 0
+    let drawY = 0
+
+    if (imageRatio > canvasRatio) {
+      drawWidth = canvasWidth
+      drawHeight = drawWidth / imageRatio
+      drawY = (canvasHeight - drawHeight) / 2
+    } else {
+      drawHeight = canvasHeight
+      drawWidth = drawHeight * imageRatio
+      drawX = (canvasWidth - drawWidth) / 2
+    }
+
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+  }
+
+  async function handleUseOriginal() {
+    if (!request?.file) return
+    setSubmitting(true)
+    try {
+      onConfirm(request.file)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleUseBlurredFull() {
+    if (!request?.file || !naturalSize.width || !naturalSize.height) return
+    setSubmitting(true)
+    try {
+      const { width: outputWidth, height: outputHeight } = getAspectOutputSize()
+      const canvas = document.createElement('canvas')
+      canvas.width = outputWidth
+      canvas.height = outputHeight
+      const context = canvas.getContext('2d', { alpha: false })
+      if (!context) throw new Error('Image processing is not supported in this browser.')
+
+      const image = imageRef.current
+      context.fillStyle = '#111'
+      context.fillRect(0, 0, outputWidth, outputHeight)
+      context.save()
+      context.filter = 'blur(34px) saturate(1.08)'
+      drawImageCover(context, image, outputWidth, outputHeight)
+      context.restore()
+      context.fillStyle = 'rgba(0,0,0,0.18)'
+      context.fillRect(0, 0, outputWidth, outputHeight)
+      drawImageContain(context, image, outputWidth, outputHeight)
+
+      const outputType = request.config?.outputType || getCanvasOutputType(request.file)
+      const blob = await canvasToBlob(canvas, outputType, 0.94)
+      const outputFile = new File(
+        [blob],
+        fileNameWithExtension(request.file.name, extensionForMime(outputType)),
+        { type: outputType, lastModified: Date.now() }
+      )
+      onConfirm(outputFile)
+    } catch (error) {
+      onCancel(error)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function handleConfirm() {
     if (!request?.file || !naturalSize.width || !naturalSize.height || !frame.width || !frame.height || !displayScale) return
     setSubmitting(true)
@@ -519,11 +648,11 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
           width: isMobile ? '100%' : 'min(920px, 100%)',
           maxHeight: isMobile ? '96vh' : 'min(92vh, 860px)',
           overflow: 'auto',
-          borderRadius: 18,
+          borderRadius: isMobile ? 14 : 18,
           border: '1px solid rgba(255,255,255,0.12)',
           background: '#121212',
           boxShadow: '0 30px 90px rgba(0,0,0,0.45)',
-          padding: isMobile ? 16 : 20,
+          padding: isMobile ? 12 : 20,
           display: 'grid',
           gap: 18,
         }}
@@ -538,8 +667,8 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
             <div
               style={{
                 width: '100%',
-                minHeight: 280,
-                borderRadius: 18,
+                minHeight: isMobile ? 220 : 280,
+                borderRadius: isMobile ? 14 : 18,
                 border: '1px solid rgba(255,255,255,0.1)',
                 background: 'linear-gradient(180deg, rgba(18,18,18,0.96) 0%, rgba(10,10,10,0.96) 100%)',
                 display: 'flex',
@@ -554,12 +683,41 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                   position: 'relative',
                   width: stageWidth || Math.min(maxStageWidth, 520),
                   height: stageHeight || Math.min(maxStageHeight, 420),
-                  borderRadius: 16,
+                  borderRadius: isMobile ? 12 : 16,
                   overflow: 'hidden',
                   background: '#0a0a0a',
                   touchAction: 'none',
                 }}
               >
+                <img
+                  src={request.src}
+                  alt=""
+                  draggable={false}
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'block',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                    filter: 'blur(24px) saturate(1.05)',
+                    transform: 'scale(1.08)',
+                    opacity: 0.72,
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.22)',
+                    pointerEvents: 'none',
+                  }}
+                />
                 <img
                   ref={imageRef}
                   src={request.src}
@@ -637,18 +795,18 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
                 </div>
               </div>
             </div>
-            <div style={{ color: '#9f9f9f', fontSize: 13 }}>
+            <div style={{ color: '#9f9f9f', fontSize: isMobile ? 12 : 13, lineHeight: 1.45 }}>
               Move the frame or drag the corner dots to make it larger or smaller. The image stays exactly as you uploaded it.
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+          <div style={{ display: 'grid', gap: isMobile ? 12 : 16, alignContent: 'start' }}>
             <div
               style={{
                 borderRadius: 16,
                 border: '1px solid rgba(255,255,255,0.08)',
                 background: 'rgba(255,255,255,0.03)',
-                padding: 16,
+                padding: isMobile ? 14 : 16,
                 display: 'grid',
                 gap: 12,
               }}
@@ -661,7 +819,49 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: isMobile ? 'stretch' : 'flex-end', flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
+            <div
+              style={{
+                borderRadius: 16,
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.03)',
+                padding: isMobile ? 14 : 16,
+                display: 'grid',
+                gap: 12,
+              }}
+            >
+              <div style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: 1.1, color: '#c8902a' }}>
+                Photo options
+              </div>
+              <button
+                type="button"
+                className="admin-crop-tool admin-crop-tool--wide"
+                onClick={handleUseOriginal}
+                disabled={submitting || !request?.file}
+              >
+                Use Original Photo
+              </button>
+              <button
+                type="button"
+                className="admin-crop-tool admin-crop-tool--wide"
+                onClick={handleUseBlurredFull}
+                disabled={submitting || !naturalSize.width || !naturalSize.height}
+              >
+                Full Photo + Blurred Background
+              </button>
+              <button
+                type="button"
+                className="admin-crop-tool admin-crop-tool--wide"
+                onClick={() => resetFrame(1)}
+                disabled={!frame.width || submitting}
+              >
+                Fit Max
+              </button>
+              <div style={{ color: '#9f9f9f', fontSize: 12, lineHeight: 1.45 }}>
+                Original keeps the uploaded photo. Blurred background keeps the whole photo visible in the site frame without black side bars.
+              </div>
+            </div>
+
+            <div className="admin-crop-actions">
               <button
                 type="button"
                 onClick={() => onCancel(createCropCancelError())}
@@ -1047,23 +1247,6 @@ export default function Admin() {
     return { ...result, converted: normalized.converted || result.converted }
   }
 
-  async function cropAndOptimizeCategoryImage(file) {
-    if (!file) return { file, optimized: false }
-    const normalized = await convertHeicIfNeeded(file)
-    const croppedFile = await requestCrop(normalized.file, {
-      aspect: 1,
-      title: 'Adjust category image',
-      helper: 'This square frame matches how category images are cropped on the site.',
-      maxOutputSide: 1600,
-      outputType: getCanvasOutputType(normalized.file),
-    })
-    const result = await optimizeLargeImage(croppedFile, {
-      maxBytes: CATEGORY_IMAGE_MAX_BYTES,
-      targetBytes: CATEGORY_IMAGE_TARGET_BYTES,
-    })
-    return { ...result, converted: normalized.converted || result.converted }
-  }
-
   // Categories
   const categoriesQuery = useQuery({
     queryKey: ['categories'],
@@ -1101,7 +1284,6 @@ export default function Admin() {
       await qc.invalidateQueries({ queryKey: ['categories'] })
       setToast({ type: 'success', text: 'Category updated.' })
       setEditingCategoryId(null)
-      resetEditCategoryImage()
     },
     onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to update category.' }),
     onSettled: () => setSavingCatId(null),
@@ -1160,57 +1342,6 @@ export default function Admin() {
     category: '',
     before: null,
     after: null,
-  })
-
-  const [categoryImageFile, setCategoryImageFile] = useState(null)
-  const {
-    inputId: categoryImageInputId,
-    inputRef: categoryImageInputRef,
-    previewUrl: categoryImagePreviewUrl,
-    open: openCategoryPicker,
-    onChange: onCategoryImageChange,
-    clear: clearCategoryImage,
-    selectFile: selectCategoryImageFile,
-    isProcessing: isCategoryImageProcessing,
-  } = useImageFilePicker({
-    onFileSelected: setCategoryImageFile,
-    validate: validateCategoryImage,
-    onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: cropAndOptimizeCategoryImage,
-    onPrepared: (result) => {
-      if (result?.converted && result?.optimized) {
-        setToast({ type: 'success', text: 'HEIC category image was converted to JPG and optimized automatically.' })
-      } else if (result?.converted) {
-        setToast({ type: 'success', text: 'HEIC category image was converted to JPG automatically.' })
-      } else if (result?.optimized) {
-        setToast({ type: 'success', text: 'Category image was optimized automatically.' })
-      }
-    },
-  })
-
-  const [editCategoryImageFile, setEditCategoryImageFile] = useState(null)
-  const {
-    inputId: editCategoryImageInputId,
-    inputRef: editCategoryImageInputRef,
-    previewUrl: editCategoryImagePreviewUrl,
-    open: openEditCategoryPicker,
-    onChange: onEditCategoryImageChange,
-    clear: clearEditCategoryImage,
-    isProcessing: isEditCategoryImageProcessing,
-  } = useImageFilePicker({
-    onFileSelected: setEditCategoryImageFile,
-    validate: validateCategoryImage,
-    onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: cropAndOptimizeCategoryImage,
-    onPrepared: (result) => {
-      if (result?.converted && result?.optimized) {
-        setToast({ type: 'success', text: 'HEIC category image was converted to JPG and optimized automatically.' })
-      } else if (result?.converted) {
-        setToast({ type: 'success', text: 'HEIC category image was converted to JPG automatically.' })
-      } else if (result?.optimized) {
-        setToast({ type: 'success', text: 'Category image was optimized automatically.' })
-      }
-    },
   })
 
   const {
@@ -1313,22 +1444,11 @@ export default function Admin() {
     },
   })
 
-  function validateCategoryImage(file) {
-    if (!file) return { ok: true }
-    if (file.size > CATEGORY_IMAGE_MAX_BYTES) return { ok: false, message: 'Category image is still too large after optimization. Please choose a slightly smaller file.' }
-    if (!isSupportedImageLike(file)) return { ok: false, message: 'Please select a supported image file.' }
-    return { ok: true }
-  }
-
   function validateWorkImage(file) {
     if (!file) return { ok: true }
     if (file.size > WORK_IMAGE_MAX_BYTES) return { ok: false, message: 'Image is still too large after optimization. Please choose a slightly smaller file.' }
     if (!isSupportedImageLike(file)) return { ok: false, message: 'Please select a supported image file.' }
     return { ok: true }
-  }
-
-  function resetEditCategoryImage() {
-    clearEditCategoryImage()
   }
 
   function resetEditWorkImages() {
@@ -1344,20 +1464,17 @@ export default function Admin() {
   }
 
   function resetNewCategoryForm(formEl) {
-    clearCategoryImage()
     formEl?.reset?.()
   }
 
   function startEditCategory(cat) {
     setEditingCategoryId(cat.id)
     setEditCategoryForm({ name: cat.name || '', description: cat.description || '' })
-    resetEditCategoryImage()
   }
 
   function cancelEditCategory() {
     setEditingCategoryId(null)
     setEditCategoryForm({ name: '', description: '' })
-    resetEditCategoryImage()
   }
 
   function startEditWork(work) {
@@ -1525,6 +1642,11 @@ export default function Admin() {
         .admin-img-change { position: absolute; top: 10px; right: 10px; z-index: 9999; width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; user-select: none; -webkit-user-select: none; touch-action: manipulation; pointer-events: auto !important; }
         .admin-img-change:hover { background: rgba(0,0,0,0.72); }
         .admin-crop-layout { grid-template-columns: minmax(0, 1fr) minmax(240px, 280px); }
+        .admin-crop-tool { min-height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(10,10,10,0.42); color: rgba(255,255,255,0.92); cursor: pointer; font-weight: 600; }
+        .admin-crop-tool--wide { width: 100%; min-height: 44px; }
+        .admin-crop-tool:hover:not(:disabled) { border-color: rgba(200,144,42,0.48); background: rgba(200,144,42,0.12); }
+        .admin-crop-tool:disabled { opacity: 0.45; cursor: not-allowed; }
+        .admin-crop-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
         @media (max-width: 900px) {
           .admin-shell { grid-template-columns: 1fr; }
           .admin-topbar { display: flex; }
@@ -1534,6 +1656,8 @@ export default function Admin() {
           .admin-main { padding: 18px 14px; }
           .admin-portfolio-grid { grid-template-columns: 1fr; }
           .admin-crop-layout { grid-template-columns: 1fr; }
+          .admin-crop-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+          .admin-crop-tool { min-height: 46px; font-size: 14px; }
         }
         @media (max-width: 820px) {
           .admin-grid-2 { grid-template-columns: 1fr; }
@@ -2025,53 +2149,6 @@ export default function Admin() {
                       className="admin-cat-row"
                     >
                       <div className="admin-cat-left">
-                        <div
-                          style={{
-                            width: 46,
-                            height: 46,
-                            borderRadius: 12,
-                            overflow: 'hidden',
-                            border: `1px solid ${styles.border}`,
-                            background: 'rgba(0,0,0,0.25)',
-                            flexShrink: 0,
-                            position: 'relative',
-                          }}
-                        >
-                          {(editingCategoryId === cat.id && editCategoryImagePreviewUrl ? editCategoryImagePreviewUrl : cat.img_categories) ? (
-                            <img
-                              key={editingCategoryId === cat.id && editCategoryImagePreviewUrl ? `preview:${editCategoryImagePreviewUrl}` : `remote:${cat.img_categories}`}
-                              src={editingCategoryId === cat.id && editCategoryImagePreviewUrl ? editCategoryImagePreviewUrl : cat.img_categories}
-                              alt={cat.name}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.65)' }}>
-                              <Icon name="image" />
-                            </div>
-                          )}
-                          {editingCategoryId === cat.id && (
-                            <>
-                              <input
-                                id={editCategoryImageInputId}
-                                ref={editCategoryImageInputRef}
-                                className="admin-file-input"
-                                type="file"
-                                accept={IMAGE_INPUT_ACCEPT}
-                                onChange={onEditCategoryImageChange}
-                              />
-                              <label
-                                htmlFor={editCategoryImageInputId}
-                                className="admin-img-change"
-                                style={{ width: 30, height: 30, top: 8, right: 8 }}
-                                aria-label="Change category image"
-                              >
-                                <Icon name="camera" />
-                              </label>
-                            </>
-                          )}
-                        </div>
-
                         <div className="admin-cat-text">
                           {editingCategoryId === cat.id ? (
                             <>
@@ -2121,12 +2198,11 @@ export default function Admin() {
                                   const fd = new FormData()
                                   fd.append('name', editCategoryForm.name)
                                   fd.append('description', editCategoryForm.description || '')
-                                  if (editCategoryImageFile) fd.append('image', editCategoryImageFile)
                                   updateCategoryMutation.mutate({ id: cat.id, data: fd })
                                 }}
-                                disabled={updateCategoryMutation.isPending || isEditCategoryImageProcessing}
+                                disabled={updateCategoryMutation.isPending}
                               >
-                                {isEditCategoryImageProcessing ? 'Optimizing…' : cat.id === savingCatId ? 'Saving…' : 'Save'}
+                                {cat.id === savingCatId ? 'Saving…' : 'Save'}
                               </button>
                               <button type="button" style={styles.buttonSubtle} onClick={cancelEditCategory}>
                                 Cancel
@@ -2181,7 +2257,6 @@ export default function Admin() {
                     const fd = new FormData()
                     fd.append('name', name)
                     fd.append('description', description)
-                    if (categoryImageFile) fd.append('image', categoryImageFile)
                     await createCategoryMutation.mutateAsync(fd)
                     resetNewCategoryForm(e.currentTarget)
                   }}
@@ -2203,62 +2278,9 @@ export default function Admin() {
                       <input name="description" style={styles.input} placeholder="Optional short description…" />
                     </Field>
                   </div>
-                  <Field label="Category Image">
-                    <label
-                      className="admin-upload-box admin-upload-box--category"
-                      htmlFor={categoryImageInputId}
-                      onDragOver={(e) => {
-                        e.preventDefault()
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        const file = e.dataTransfer?.files?.[0]
-                        if (file) selectCategoryImageFile(file)
-                      }}
-                      style={{ minHeight: 180 }}
-                    >
-                      <input
-                        id={categoryImageInputId}
-                        ref={categoryImageInputRef}
-                        className="admin-file-input"
-                        type="file"
-                        accept={IMAGE_INPUT_ACCEPT}
-                        onChange={onCategoryImageChange}
-                      />
-
-                      {!categoryImagePreviewUrl && (
-                        <div className="admin-upload-inner">
-                          <div className="admin-upload-icon" aria-hidden="true">
-                            <Icon name="image" />
-                          </div>
-                          <div className="admin-upload-title">Click to upload category image</div>
-                          <div className="admin-upload-sub">JPG, PNG, or WEBP • files over 2MB are auto-optimized • square crop</div>
-                        </div>
-                      )}
-
-                      {categoryImagePreviewUrl && (
-                        <>
-                          <div className="admin-upload-preview">
-                            <img key={`preview:${categoryImagePreviewUrl}`} src={categoryImagePreviewUrl} alt="Category preview" />
-                            <div className="admin-upload-chip">{isCategoryImageProcessing ? 'Optimizing…' : 'Click to change'}</div>
-                          </div>
-                          <div className="admin-upload-actions">
-                            <button
-                              className="admin-upload-action"
-                              type="button"
-                              onClick={clearCategoryImage}
-                              aria-label="Remove category image"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </label>
-                  </Field>
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button type="submit" style={styles.button} disabled={createCategoryMutation.isPending || isCategoryImageProcessing}>
-                      {isCategoryImageProcessing ? 'Optimizing…' : createCategoryMutation.isPending ? 'Saving…' : 'Add Category'}
+                    <button type="submit" style={styles.button} disabled={createCategoryMutation.isPending}>
+                      {createCategoryMutation.isPending ? 'Saving…' : 'Add Category'}
                     </button>
                   </div>
                 </form>

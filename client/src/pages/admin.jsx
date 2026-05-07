@@ -507,9 +507,84 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
   }
 
+  function boxBlurPixels(source, width, height, radius) {
+    if (radius < 1) return source
+    const tmp = new Uint8ClampedArray(source.length)
+    const output = new Uint8ClampedArray(source.length)
+    const windowSize = radius * 2 + 1
+
+    for (let y = 0; y < height; y += 1) {
+      let r = 0
+      let g = 0
+      let b = 0
+      let a = 0
+
+      for (let x = -radius; x <= radius; x += 1) {
+        const clampedX = clamp(x, 0, width - 1)
+        const index = (y * width + clampedX) * 4
+        r += source[index]
+        g += source[index + 1]
+        b += source[index + 2]
+        a += source[index + 3]
+      }
+
+      for (let x = 0; x < width; x += 1) {
+        const index = (y * width + x) * 4
+        tmp[index] = r / windowSize
+        tmp[index + 1] = g / windowSize
+        tmp[index + 2] = b / windowSize
+        tmp[index + 3] = a / windowSize
+
+        const removeX = clamp(x - radius, 0, width - 1)
+        const addX = clamp(x + radius + 1, 0, width - 1)
+        const removeIndex = (y * width + removeX) * 4
+        const addIndex = (y * width + addX) * 4
+        r += source[addIndex] - source[removeIndex]
+        g += source[addIndex + 1] - source[removeIndex + 1]
+        b += source[addIndex + 2] - source[removeIndex + 2]
+        a += source[addIndex + 3] - source[removeIndex + 3]
+      }
+    }
+
+    for (let x = 0; x < width; x += 1) {
+      let r = 0
+      let g = 0
+      let b = 0
+      let a = 0
+
+      for (let y = -radius; y <= radius; y += 1) {
+        const clampedY = clamp(y, 0, height - 1)
+        const index = (clampedY * width + x) * 4
+        r += tmp[index]
+        g += tmp[index + 1]
+        b += tmp[index + 2]
+        a += tmp[index + 3]
+      }
+
+      for (let y = 0; y < height; y += 1) {
+        const index = (y * width + x) * 4
+        output[index] = r / windowSize
+        output[index + 1] = g / windowSize
+        output[index + 2] = b / windowSize
+        output[index + 3] = a / windowSize
+
+        const removeY = clamp(y - radius, 0, height - 1)
+        const addY = clamp(y + radius + 1, 0, height - 1)
+        const removeIndex = (removeY * width + x) * 4
+        const addIndex = (addY * width + x) * 4
+        r += tmp[addIndex] - tmp[removeIndex]
+        g += tmp[addIndex + 1] - tmp[removeIndex + 1]
+        b += tmp[addIndex + 2] - tmp[removeIndex + 2]
+        a += tmp[addIndex + 3] - tmp[removeIndex + 3]
+      }
+    }
+
+    return output
+  }
+
   function drawBlurredCover(context, image, canvasWidth, canvasHeight) {
-    const tinyWidth = Math.max(24, Math.round(canvasWidth / 22))
-    const tinyHeight = Math.max(24, Math.round(canvasHeight / 22))
+    const tinyWidth = Math.max(120, Math.min(260, Math.round(canvasWidth / 7)))
+    const tinyHeight = Math.max(120, Math.min(260, Math.round(canvasHeight / 7)))
     const tinyCanvas = document.createElement('canvas')
     tinyCanvas.width = tinyWidth
     tinyCanvas.height = tinyHeight
@@ -521,16 +596,24 @@ function ImageCropModal({ request, onConfirm, onCancel }) {
     }
 
     tinyContext.imageSmoothingEnabled = true
-    tinyContext.imageSmoothingQuality = 'low'
+    tinyContext.imageSmoothingQuality = 'high'
     drawImageCover(tinyContext, image, tinyWidth, tinyHeight)
+
+    try {
+      const imageData = tinyContext.getImageData(0, 0, tinyWidth, tinyHeight)
+      let blurred = imageData.data
+      blurred = boxBlurPixels(blurred, tinyWidth, tinyHeight, 9)
+      blurred = boxBlurPixels(blurred, tinyWidth, tinyHeight, 9)
+      blurred = boxBlurPixels(blurred, tinyWidth, tinyHeight, 7)
+      imageData.data.set(blurred)
+      tinyContext.putImageData(imageData, 0, 0)
+    } catch {
+      // If pixel access is blocked, keep the smooth scaled fallback.
+    }
 
     context.imageSmoothingEnabled = true
     context.imageSmoothingQuality = 'high'
-    context.drawImage(tinyCanvas, 0, 0, tinyWidth, tinyHeight, 0, 0, canvasWidth, canvasHeight)
-    context.save()
-    context.globalAlpha = 0.45
-    context.drawImage(tinyCanvas, 0, 0, tinyWidth, tinyHeight, -canvasWidth * 0.03, -canvasHeight * 0.03, canvasWidth * 1.06, canvasHeight * 1.06)
-    context.restore()
+    context.drawImage(tinyCanvas, 0, 0, tinyWidth, tinyHeight, -canvasWidth * 0.08, -canvasHeight * 0.08, canvasWidth * 1.16, canvasHeight * 1.16)
   }
 
   function drawImageContain(context, image, canvasWidth, canvasHeight) {

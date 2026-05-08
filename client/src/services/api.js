@@ -43,6 +43,6 @@ api.interceptors.response.use(
 export const getPortfolio = (params = {}) => api.get('/api/portfolio', { params })
 export const getCategories = () => api.get('/api/categories')
 export const getContact = () => api.get('/api/contact')
-export const getGoogleReviews = () => api.get('/api/google-reviews')
+export const getGoogleReviews = (params = {}) => api.get('/api/google-reviews', { params })
 
 export default api

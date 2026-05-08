@@ -3,6 +3,7 @@ import { ExternalLink, MessageSquare, Star } from 'lucide-react'
 import { getGoogleReviews } from '../services/api'
 
 const GOOGLE_REVIEW_URL = 'https://www.google.com/maps/place/Prime+Leather+Repair/@42.144922,-87.9527227,757m/data=!3m1!1e3!4m10!1m2!2m1!1sPrime+Leather+Repair!3m6!1s0x880fbde48bc9a361:0x3e5c37c666de3ab4!8m2!3d42.1464913!4d-87.948899!15sChRQcmltZSBMZWF0aGVyIFJlcGFpcpIBFmxlYXRoZXJfcmVwYWlyX3NlcnZpY2XgAQA!16s%2Fg%2F11z73ttnyk?hl=en-us&entry=ttu'
+const GOOGLE_PLACE_ID = 'ChIJYaPJi-S9D4gRtDreZsY3XD4'
 
 function getReviewText(review) {
   if (typeof review?.text === 'string') return review.text
@@ -64,7 +65,7 @@ export default function Reviews() {
 
   useEffect(() => {
     let alive = true
-    getGoogleReviews()
+    getGoogleReviews({ placeId: GOOGLE_PLACE_ID })
       .then((res) => {
         if (!alive) return
         const next = normalizeGooglePayload(res)

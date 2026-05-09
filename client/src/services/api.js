@@ -4,6 +4,34 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://api.primeleatherrepair.com',
 })
 
+export const ADMIN_TOKEN_STORAGE_KEY = 'primeLeatherAdminToken'
+
+export function getAdminToken() {
+  try {
+    return localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+export function setAdminToken(token) {
+  try {
+    if (token) localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token)
+    else localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY)
+  } catch {
+    // ignore storage failures
+  }
+}
+
+api.interceptors.request.use((config) => {
+  const token = getAdminToken()
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 api.interceptors.response.use(
   (res) => res,
   (error) => {

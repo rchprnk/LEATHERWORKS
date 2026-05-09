@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import api, { getAdminToken, setAdminToken } from '../services/api'
 
 const UPLOAD_TIMEOUT_MS = 60_000
 const SAVE_TIMEOUT_MS = 30_000
@@ -10,6 +10,21 @@ const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
 const IMAGE_INPUT_ACCEPT = 'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.bmp,.tif,.tiff,.svg'
 const SUPPORTED_IMAGE_EXT_RE = /\.(jpe?g|png|webp|hei[cf]|avif|gif|bmp|tiff?|svg)$/i
+
+async function loginAdmin(payload) {
+  const res = await api.post('/api/auth/login', payload, { timeout: SAVE_TIMEOUT_MS })
+  return res.data
+}
+
+async function fetchAdminSession() {
+  const res = await api.get('/api/auth/session', { timeout: SAVE_TIMEOUT_MS })
+  return res.data
+}
+
+async function changeAdminPassword(payload) {
+  const res = await api.post('/api/auth/change-password', payload, { timeout: SAVE_TIMEOUT_MS })
+  return res.data
+}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -231,21 +246,16 @@ function useImageCropper() {
   function requestCrop(file, config) {
     if (!file) return Promise.resolve(null)
 
-    return new Promise(async (resolve, reject) => {
-      try {
-        const src = await readFileAsDataUrl(file)
-        setState({
-          open: true,
-          file,
-          src,
-          config,
-          resolve,
-          reject,
-        })
-      } catch (error) {
-        reject(error)
-      }
-    })
+    return readFileAsDataUrl(file).then((src) => new Promise((resolve, reject) => {
+      setState({
+        open: true,
+        file,
+        src,
+        config,
+        resolve,
+        reject,
+      })
+    }))
   }
 
   function closeWith(resultType, payload) {
@@ -1267,6 +1277,114 @@ function Icon({ name }) {
   return null
 }
 
+function AdminAuthScreen({ mode, user, onLogin, onPasswordChanged, loading, error }) {
+  const [formError, setFormError] = useState('')
+
+  const title = mode === 'change-password' ? 'Change Admin Password' : 'Admin Login'
+  const submitLabel = loading ? 'Please wait...' : mode === 'change-password' ? 'Save New Password' : 'Log In'
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#121212', color: '#fff', display: 'grid', placeItems: 'center', padding: 18 }}>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault()
+          setFormError('')
+          const form = new FormData(e.currentTarget)
+          try {
+            if (mode === 'change-password') {
+              await onPasswordChanged({
+                currentPassword: String(form.get('currentPassword') || ''),
+                newPassword: String(form.get('newPassword') || ''),
+              })
+            } else {
+              await onLogin({
+                username: String(form.get('username') || '').trim(),
+                password: String(form.get('password') || ''),
+              })
+            }
+          } catch (err) {
+            setFormError(err?.message || 'Authentication failed.')
+          }
+        }}
+        style={{
+          width: 'min(100%, 420px)',
+          borderRadius: 14,
+          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'rgba(18,18,18,0.92)',
+          padding: 24,
+          display: 'grid',
+          gap: 14,
+          boxShadow: '0 28px 80px rgba(0,0,0,0.35)',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ color: '#c8902a', letterSpacing: 3.2, textTransform: 'uppercase', fontSize: 11 }}>
+            Prime Leather Repair
+          </div>
+          <h1 style={{ margin: 0, fontSize: 24 }}>{title}</h1>
+          {mode === 'change-password' && (
+            <div style={{ color: '#bdbdbd', fontSize: 14, lineHeight: 1.5 }}>
+              Signed in as {user?.username}. This account must set a private password before using the panel.
+            </div>
+          )}
+        </div>
+
+        {mode === 'login' ? (
+          <>
+            <Field label="Username">
+              <input name="username" autoComplete="username" style={authInputStyle} required />
+            </Field>
+            <Field label="Password">
+              <input name="password" type="password" autoComplete="current-password" style={authInputStyle} required />
+            </Field>
+          </>
+        ) : (
+          <>
+            <Field label="Current Password">
+              <input name="currentPassword" type="password" autoComplete="current-password" style={authInputStyle} required />
+            </Field>
+            <Field label="New Password">
+              <input name="newPassword" type="password" autoComplete="new-password" minLength={10} style={authInputStyle} required />
+            </Field>
+          </>
+        )}
+
+        {(formError || error) && (
+          <div style={{ border: '1px solid rgba(255,90,90,0.35)', background: 'rgba(255,90,90,0.10)', color: '#fff', borderRadius: 10, padding: '10px 12px' }}>
+            {formError || error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            padding: '12px 14px',
+            borderRadius: 10,
+            border: '1px solid rgba(200,144,42,0.35)',
+            background: 'rgba(200,144,42,0.14)',
+            color: '#fff',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {submitLabel}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+const authInputStyle = {
+  width: '100%',
+  padding: '12px 12px',
+  borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(12,12,12,0.9)',
+  color: '#fff',
+  outline: 'none',
+}
+
 export default function Admin() {
   const qc = useQueryClient()
   const { cropRequest, requestCrop, resolveCrop, rejectCrop } = useImageCropper()
@@ -1281,6 +1399,35 @@ export default function Admin() {
   const [editingWorkId, setEditingWorkId] = useState(null)
   const [editWorkForm, setEditWorkForm] = useState({ title: '', description: '' })
   const [savingWorkId, setSavingWorkId] = useState(null)
+  const [authUser, setAuthUser] = useState(null)
+
+  const sessionQuery = useQuery({
+    queryKey: ['admin-session'],
+    queryFn: fetchAdminSession,
+    enabled: Boolean(getAdminToken()),
+    retry: false,
+  })
+
+  const loginMutation = useMutation({
+    mutationFn: loginAdmin,
+    onSuccess: (data) => {
+      setAdminToken(data.token)
+      setAuthUser(data.user)
+      qc.invalidateQueries({ queryKey: ['admin-session'] })
+    },
+  })
+
+  const changePasswordMutation = useMutation({
+    mutationFn: changeAdminPassword,
+    onSuccess: (data) => {
+      setAdminToken(data.token)
+      setAuthUser(data.user)
+      qc.invalidateQueries({ queryKey: ['admin-session'] })
+    },
+  })
+
+  const currentAuthUser = authUser || sessionQuery.data?.user || null
+  const adminReady = Boolean(currentAuthUser && !currentAuthUser.mustChangePassword)
 
   const styles = useMemo(() => {
     const gold = '#c8902a'
@@ -1357,6 +1504,7 @@ export default function Admin() {
   const categoriesQuery = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories,
+    enabled: adminReady,
   })
 
   const createCategoryMutation = useMutation({
@@ -1399,6 +1547,7 @@ export default function Admin() {
   const portfolioQuery = useQuery({
     queryKey: ['portfolio'],
     queryFn: fetchPortfolio,
+    enabled: adminReady,
   })
 
   const createMutation = useMutation({
@@ -1454,7 +1603,6 @@ export default function Admin() {
     inputId: beforeInputId,
     inputRef: beforeInputRef,
     previewUrl: beforePreviewUrl,
-    open: openBeforePicker,
     onChange: onBeforeChange,
     selectFile: selectBeforeFile,
     clear: clearBeforeFile,
@@ -1479,7 +1627,6 @@ export default function Admin() {
     inputId: afterInputId,
     inputRef: afterInputRef,
     previewUrl: afterPreviewUrl,
-    open: openAfterPicker,
     onChange: onAfterChange,
     selectFile: selectAfterFile,
     clear: clearAfterFile,
@@ -1505,7 +1652,6 @@ export default function Admin() {
     inputId: editWorkBeforeInputId,
     inputRef: editWorkBeforeInputRef,
     previewUrl: editWorkBeforePreviewUrl,
-    open: openEditWorkBeforePicker,
     onChange: onEditWorkBeforeChange,
     clear: clearEditWorkBeforeFile,
     isProcessing: isEditBeforeProcessing,
@@ -1530,7 +1676,6 @@ export default function Admin() {
     inputId: editWorkAfterInputId,
     inputRef: editWorkAfterInputRef,
     previewUrl: editWorkAfterPreviewUrl,
-    open: openEditWorkAfterPicker,
     onChange: onEditWorkAfterChange,
     clear: clearEditWorkAfterFile,
     isProcessing: isEditAfterProcessing,
@@ -1623,6 +1768,7 @@ export default function Admin() {
   const contactQuery = useQuery({
     queryKey: ['contact'],
     queryFn: fetchContact,
+    enabled: adminReady,
   })
 
   const contactDefaults = useMemo(() => {
@@ -1688,6 +1834,46 @@ export default function Admin() {
     } catch {
       // ignore
     }
+  }
+
+  function logoutAdmin() {
+    setAdminToken('')
+    setAuthUser(null)
+    qc.removeQueries({ queryKey: ['admin-session'] })
+    qc.removeQueries({ queryKey: ['portfolio'] })
+    qc.removeQueries({ queryKey: ['categories'] })
+    qc.removeQueries({ queryKey: ['contact'] })
+  }
+
+  if (getAdminToken() && !currentAuthUser && sessionQuery.isLoading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#121212', color: '#fff', display: 'grid', placeItems: 'center' }}>
+        Loading admin session...
+      </div>
+    )
+  }
+
+  if (!currentAuthUser) {
+    return (
+      <AdminAuthScreen
+        mode="login"
+        loading={loginMutation.isPending}
+        error={loginMutation.error?.message}
+        onLogin={loginMutation.mutateAsync}
+      />
+    )
+  }
+
+  if (currentAuthUser.mustChangePassword) {
+    return (
+      <AdminAuthScreen
+        mode="change-password"
+        user={currentAuthUser}
+        loading={changePasswordMutation.isPending}
+        error={changePasswordMutation.error?.message}
+        onPasswordChanged={changePasswordMutation.mutateAsync}
+      />
+    )
   }
 
   return (
@@ -1776,6 +1962,9 @@ export default function Admin() {
           <div className="admin-brand">
             <div className="kicker">Prime Leather Repair</div>
             <div className="title">Admin Panel</div>
+            <div style={{ color: 'rgba(255,255,255,0.62)', fontSize: 12 }}>
+              {currentAuthUser.username}
+            </div>
           </div>
 
           <nav className="admin-nav">
@@ -1793,6 +1982,9 @@ export default function Admin() {
               </button>
             ))}
           </nav>
+          <button type="button" className="admin-nav-btn" onClick={logoutAdmin} style={{ marginTop: 10 }}>
+            <span className="admin-nav-label">Log Out</span>
+          </button>
         </aside>
 
         <main className="admin-main">
@@ -2301,10 +2493,13 @@ export default function Admin() {
                                   whiteSpace: 'nowrap',
                                 }}
                                 onClick={() => {
-                                  const fd = new FormData()
-                                  fd.append('name', editCategoryForm.name)
-                                  fd.append('description', editCategoryForm.description || '')
-                                  updateCategoryMutation.mutate({ id: cat.id, data: fd })
+                                  updateCategoryMutation.mutate({
+                                    id: cat.id,
+                                    data: {
+                                      name: editCategoryForm.name,
+                                      description: editCategoryForm.description || '',
+                                    },
+                                  })
                                 }}
                                 disabled={updateCategoryMutation.isPending}
                               >
@@ -2360,10 +2555,7 @@ export default function Admin() {
                     const form = new FormData(e.currentTarget)
                     const name = String(form.get('name') || '').trim()
                     const description = String(form.get('description') || '').trim()
-                    const fd = new FormData()
-                    fd.append('name', name)
-                    fd.append('description', description)
-                    await createCategoryMutation.mutateAsync(fd)
+                    await createCategoryMutation.mutateAsync({ name, description })
                     resetNewCategoryForm(e.currentTarget)
                   }}
                   style={{

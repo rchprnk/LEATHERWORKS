@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getCategories } from '../services/api'
+import { useSiteData } from '../context/SiteDataContext.jsx'
 
 const HERO_BG = 'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=1600&q=80'
 const CRAFT_PHOTO = 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=1200&q=80'
@@ -96,38 +96,16 @@ function CategoryIcon({ name = '' }) {
 }
 
 export default function Home() {
-  const [services, setServices] = useState([])
-  const [servicesLoading, setServicesLoading] = useState(true)
+  const { categories, loading } = useSiteData()
+  const services = categories.slice(0, 3).map((item) => ({
+    id: item.id || item.name,
+    name: item.name,
+    description: item.description || 'Thoughtful restoration for the leather pieces you use and love most.',
+    imageUrl: item.img_categories || getCategoryVisual(item.name),
+  }))
+  const servicesLoading = loading
   const visibleServices = services.slice(0, 3)
   const serviceColumnCount = servicesLoading ? 3 : Math.max(1, Math.min(visibleServices.length, 3))
-
-  useEffect(() => {
-    let alive = true
-
-    getCategories()
-      .then(({ data }) => {
-        if (!alive) return
-
-        if (Array.isArray(data) && data.length) {
-          setServices(
-            data.slice(0, 3).map((item) => ({
-              id: item.id || item.name,
-              name: item.name,
-              description: item.description || 'Thoughtful restoration for the leather pieces you use and love most.',
-              imageUrl: item.img_categories || getCategoryVisual(item.name),
-            }))
-          )
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (alive) setServicesLoading(false)
-      })
-
-    return () => {
-      alive = false
-    }
-  }, [])
 
   return (
     <div className="site-shell">

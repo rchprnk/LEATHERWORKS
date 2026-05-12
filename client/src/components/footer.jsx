@@ -1,33 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { getContact } from '../services/api'
+import { useMemo } from 'react'
+import { useSiteData } from '../context/SiteDataContext.jsx'
 
 export function Footer() {
-  const [contact, setContact] = useState({
-    phone: '',
-    email: '',
-    address: '',
-    workingHours: '',
-  })
-
-  useEffect(() => {
-    let alive = true
-
-    getContact()
-      .then(({ data }) => {
-        if (!alive) return
-        setContact({
-          phone: data?.phone || '+1 (847)899-73-12',
-          email: data?.email || 'primeleatherrepair@yahoo.com',
-          address: data?.address || '567 Fairway View Dr , Wheeling , IL 60090',
-          workingHours: data?.working_hours || 'Mon - Fri: 9:00 AM - 6:00 PM',
-        })
-      })
-      .catch(() => {})
-
-    return () => {
-      alive = false
-    }
-  }, [])
+  const { contact } = useSiteData()
 
   const footerHours = useMemo(() => {
     const raw = String(contact.workingHours || '').trim()

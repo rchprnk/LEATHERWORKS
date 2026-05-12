@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getCategories, getPortfolio } from '../services/api'
+import { useSiteData } from '../context/SiteDataContext.jsx'
+import { getPortfolio } from '../services/api'
 
 function PortfolioCard({ item }) {
   return (
@@ -29,28 +30,15 @@ function PortfolioCard({ item }) {
 export default function Portfolio() {
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedCategory = searchParams.get('category')
-  const [categories, setCategories] = useState([])
+  const { categories } = useSiteData()
   const [activeCategory, setActiveCategory] = useState(requestedCategory || 'All')
   const [items, setItems] = useState([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
 
   const filters = ['All', ...categories.map((category) => category.name)]
-
-  useEffect(() => {
-    let alive = true
-    getCategories()
-      .then(({ data }) => {
-        if (!alive || !Array.isArray(data)) return
-        setCategories(data)
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [])
 
   useEffect(() => {
     if (!requestedCategory) {
@@ -213,6 +201,37 @@ export default function Portfolio() {
           line-height: 1;
           color: var(--text-primary);
         }
+        .portfolio-skeleton {
+          min-height: 560px;
+          border-radius: 8px;
+          overflow: hidden;
+          background: #d4c2aa;
+          border: 1px solid rgba(111, 83, 49, 0.2);
+        }
+        .portfolio-skeleton__image {
+          height: 380px;
+          background: linear-gradient(90deg, rgba(198, 169, 107, 0.16), rgba(244, 234, 223, 0.54), rgba(198, 169, 107, 0.16));
+          background-size: 220% 100%;
+          animation: portfolioShimmer 1.2s ease-in-out infinite;
+        }
+        .portfolio-skeleton__body {
+          padding: 24px 26px;
+          display: grid;
+          gap: 16px;
+        }
+        .portfolio-skeleton__line {
+          height: 16px;
+          border-radius: 999px;
+          background: rgba(111, 83, 49, 0.16);
+        }
+        .portfolio-skeleton__line:last-child {
+          width: 64%;
+          height: 34px;
+        }
+        @keyframes portfolioShimmer {
+          0% { background-position: 100% 0; }
+          100% { background-position: -100% 0; }
+        }
         @media (max-width: 900px) {
           .portfolio-grid {
             grid-template-columns: 1fr;
@@ -262,7 +281,17 @@ export default function Portfolio() {
         <section className="section-block" style={{ paddingTop: 0 }}>
           <div className="site-container">
             <div className="portfolio-grid">
-              {items.map((item, index) => (
+              {loading ? (
+                [0, 1].map((item) => (
+                  <div key={item} className="portfolio-skeleton" aria-hidden="true">
+                    <div className="portfolio-skeleton__image" />
+                    <div className="portfolio-skeleton__body">
+                      <div className="portfolio-skeleton__line" />
+                      <div className="portfolio-skeleton__line" />
+                    </div>
+                  </div>
+                ))
+              ) : items.map((item, index) => (
                 <PortfolioCard key={item.id || `${item.title}-${index}`} item={item} />
               ))}
             </div>

@@ -2,6 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://api.primeleatherrepair.com',
+  timeout: 20000,
 })
 
 export const ADMIN_TOKEN_STORAGE_KEY = 'primeLeatherAdminToken'
@@ -71,6 +72,7 @@ api.interceptors.response.use(
 export const getPortfolio = (params = {}) => api.get('/api/portfolio', { params })
 export const getCategories = () => api.get('/api/categories')
 export const getContact = () => api.get('/api/contact')
+export const getSiteData = () => api.get('/api/site-data')
 export const getGoogleReviews = (params = {}) => api.get('/api/google-reviews', { params })
 
 export default api

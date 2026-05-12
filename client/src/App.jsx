@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { Navbar } from './components/navbar.jsx'
 import { Footer } from './components/footer.jsx'
@@ -7,33 +7,10 @@ import Portfolio from './pages/portfolio.jsx'
 import Admin from './pages/admin.jsx'
 import Contact from './pages/contact.jsx'
 import Reviews from './pages/reviews.jsx'
-import { getContact } from './services/api.js'
+import { SiteDataProvider, useSiteData } from './context/SiteDataContext.jsx'
 
 function FloatingSocials() {
-  const [contact, setContact] = useState({
-    phone: '',
-    whatsapp: '',
-    telegram: '',
-  })
-
-  useEffect(() => {
-    let alive = true
-
-    getContact()
-      .then(({ data }) => {
-        if (!alive) return
-        setContact({
-          phone: data?.phone || '',
-          whatsapp: data?.messenger_whatsapp || '',
-          telegram: data?.messenger_telegram || '',
-        })
-      })
-      .catch(() => {})
-
-    return () => {
-      alive = false
-    }
-  }, [])
+  const { contact } = useSiteData()
 
   const phoneDigits = useMemo(() => String(contact.phone || '').replace(/\D/g, ''), [contact.phone])
   const whatsappHref = contact.whatsapp || (phoneDigits ? `https://wa.me/${phoneDigits}` : '')
@@ -108,28 +85,7 @@ function FloatingSocials() {
 }
 
 function StickyMobileCta() {
-  const [contact, setContact] = useState({
-    phone: '',
-    whatsapp: '',
-  })
-
-  useEffect(() => {
-    let alive = true
-
-    getContact()
-      .then(({ data }) => {
-        if (!alive) return
-        setContact({
-          phone: data?.phone || '',
-          whatsapp: data?.messenger_whatsapp || '',
-        })
-      })
-      .catch(() => {})
-
-    return () => {
-      alive = false
-    }
-  }, [])
+  const { contact } = useSiteData()
 
   const phoneDigits = String(contact.phone || '').replace(/\D/g, '')
   const whatsappHref = contact.whatsapp || (phoneDigits ? `https://wa.me/${phoneDigits}` : '')
@@ -162,16 +118,45 @@ function ScrollToTop() {
   return null
 }
 
-function PublicLayout() {
+function SiteLoadingScreen() {
+  return (
+    <main className="site-loading" aria-live="polite" aria-busy="true">
+      <div className="site-loading__mark">
+        <img src="/brand-logo-20260507.jpg" alt="" />
+      </div>
+      <div className="site-loading__bar">
+        <span />
+      </div>
+    </main>
+  )
+}
+
+function PublicLayoutContent() {
+  const { ready } = useSiteData()
+
   return (
     <>
       <ScrollToTop />
       <Navbar />
-      <Outlet />
-      <FloatingSocials />
-      <StickyMobileCta />
-      <Footer />
+      {ready ? (
+        <>
+          <Outlet />
+          <FloatingSocials />
+          <StickyMobileCta />
+          <Footer />
+        </>
+      ) : (
+        <SiteLoadingScreen />
+      )}
     </>
+  )
+}
+
+function PublicLayout() {
+  return (
+    <SiteDataProvider>
+      <PublicLayoutContent />
+    </SiteDataProvider>
   )
 }
 

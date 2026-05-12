@@ -1,17 +1,6 @@
-import { useEffect, useState } from 'react'
-import { getContact } from '../services/api'
+import { useSiteData } from '../context/SiteDataContext.jsx'
 
 const STUDIO_PHOTO = 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1600&q=80'
-
-function normalizeContact(data) {
-  return {
-    phone: data?.phone || '',
-    email: data?.email || '',
-    address: data?.address || '',
-    workingHours: data?.working_hours || '',
-    whatsapp: data?.messenger_whatsapp || '',
-  }
-}
 
 function extractWhatsAppLink(value) {
   if (!value) return ''
@@ -35,23 +24,7 @@ function getWeekdayHours(workingHours) {
 }
 
 export default function Contact() {
-  const [contact, setContact] = useState(() => normalizeContact(null))
-
-  useEffect(() => {
-    let alive = true
-    getContact()
-      .then(({ data }) => {
-        if (!alive) return
-        setContact(normalizeContact(data))
-      })
-      .catch(() => {
-        if (!alive) return
-        setContact(normalizeContact(null))
-      })
-    return () => {
-      alive = false
-    }
-  }, [])
+  const { contact } = useSiteData()
 
   const whatsappLink = extractWhatsAppLink(contact.whatsapp)
   const mapSrc = getMapSrc(contact.address)

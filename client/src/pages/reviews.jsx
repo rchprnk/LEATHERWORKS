@@ -59,6 +59,11 @@ function RatingStars({ rating, size = 16 }) {
   )
 }
 
+function formatReviewCount(total) {
+  if (!total) return ''
+  return `${total} Google ${total === 1 ? 'review' : 'reviews'}`
+}
+
 export default function Reviews() {
   const [googleData, setGoogleData] = useState({ reviews: [], rating: 0, total: 0, placeUrl: GOOGLE_REVIEW_URL })
   const [status, setStatus] = useState('loading')
@@ -111,14 +116,20 @@ export default function Reviews() {
           width: 84px;
           height: 84px;
           border-radius: 999px;
-          display: grid;
-          place-items: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           background: rgba(198, 169, 107, 0.18);
           border: 1px solid rgba(198, 169, 107, 0.28);
-          font-family: var(--font-display);
-          font-size: 2.2rem;
+          font-family: var(--font-body);
+          font-size: 1.85rem;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
           color: var(--text-primary);
           line-height: 1;
+          letter-spacing: 0;
+          text-align: center;
+          padding-top: 1px;
         }
         .reviews-score.is-empty {
           font-family: inherit;
@@ -202,6 +213,7 @@ export default function Reviews() {
         }
         .review-text {
           font-size: 0.98rem;
+          color: #4f4942;
         }
         .review-meta {
           display: flex;
@@ -294,7 +306,9 @@ export default function Reviews() {
               Real customer feedback from Google Maps
             </h1>
             <p className="section-copy" style={{ maxWidth: 700, margin: '0 auto' }}>
-              Customer reviews for Prime Leather Repair will be available here soon.
+              {reviews.length
+                ? 'What customers are saying about Prime Leather Repair on Google Maps.'
+                : 'See the latest Google rating and customer feedback for Prime Leather Repair.'}
             </p>
 
             <div className="surface-card reviews-summary">
@@ -306,10 +320,10 @@ export default function Reviews() {
                 {averageRating ? <RatingStars rating={averageRating} size={18} /> : null}
                 <p style={{ marginTop: 10 }}>
                   {totalReviews
-                    ? `${totalReviews} Google reviews`
+                    ? formatReviewCount(totalReviews)
                     : status === 'loading'
                       ? 'Loading reviews...'
-                      : 'Reviews coming soon'}
+                      : 'Open Google Maps for the latest updates'}
                 </p>
               </div>
               <a className="premium-button-outline" href={placeUrl} target="_blank" rel="noreferrer">
@@ -318,11 +332,6 @@ export default function Reviews() {
               </a>
             </div>
 
-            {status === 'fallback' && (
-              <p className="review-status">
-                We are preparing our Google reviews section. In the meantime, you can visit our Google Maps page directly.
-              </p>
-            )}
           </div>
         </section>
 
@@ -347,7 +356,7 @@ export default function Reviews() {
 
                   {review.rating ? <RatingStars rating={review.rating} /> : null}
 
-                  <p className="review-text">"{review.text}"</p>
+                  <p className="review-text">{review.text}</p>
 
                   <div className="review-meta">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -363,9 +372,9 @@ export default function Reviews() {
               </div>
             ) : (
               <div className="surface-card reviews-empty">
-                <h2>Reviews coming soon</h2>
+                <h2>View us on Google Maps</h2>
                 <p>
-                  Customer reviews will be shown here shortly. You can also visit our Google Maps page for the latest business information.
+                  Open our Google profile to see the newest rating and business information.
                 </p>
                 <a className="premium-button" href={placeUrl} target="_blank" rel="noreferrer">
                   Open Google Maps

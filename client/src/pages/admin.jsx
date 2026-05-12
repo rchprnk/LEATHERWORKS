@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Eye, EyeOff } from 'lucide-react'
 import api, { getAdminToken, setAdminToken } from '../services/api'
 
 const UPLOAD_TIMEOUT_MS = 60_000
@@ -1198,6 +1199,47 @@ function Field({ label, children }) {
   )
 }
 
+function PasswordInput({ name, autoComplete, minLength }) {
+  const [visible, setVisible] = useState(false)
+  const IconComponent = visible ? EyeOff : Eye
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        name={name}
+        type={visible ? 'text' : 'password'}
+        autoComplete={autoComplete}
+        minLength={minLength}
+        style={{ ...authInputStyle, paddingRight: 44 }}
+        required
+      />
+      <button
+        type="button"
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        title={visible ? 'Hide password' : 'Show password'}
+        onClick={() => setVisible((value) => !value)}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          right: 8,
+          width: 32,
+          height: 32,
+          transform: 'translateY(-50%)',
+          border: 0,
+          borderRadius: 8,
+          background: 'transparent',
+          color: '#d0d0d0',
+          display: 'grid',
+          placeItems: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        <IconComponent size={18} strokeWidth={1.9} aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
+
 function Icon({ name }) {
   const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }
   const stroke = { stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }
@@ -1335,16 +1377,16 @@ function AdminAuthScreen({ mode, user, onLogin, onPasswordChanged, loading, erro
               <input name="username" autoComplete="username" style={authInputStyle} required />
             </Field>
             <Field label="Password">
-              <input name="password" type="password" autoComplete="current-password" style={authInputStyle} required />
+              <PasswordInput name="password" autoComplete="current-password" />
             </Field>
           </>
         ) : (
           <>
             <Field label="Current Password">
-              <input name="currentPassword" type="password" autoComplete="current-password" style={authInputStyle} required />
+              <PasswordInput name="currentPassword" autoComplete="current-password" />
             </Field>
             <Field label="New Password">
-              <input name="newPassword" type="password" autoComplete="new-password" minLength={10} style={authInputStyle} required />
+              <PasswordInput name="newPassword" autoComplete="new-password" minLength={10} />
             </Field>
           </>
         )}

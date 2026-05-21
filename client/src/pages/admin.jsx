@@ -3,14 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff } from 'lucide-react'
 import api, { getAdminToken, setAdminToken } from '../services/api'
 
-const UPLOAD_TIMEOUT_MS = 60_000
+const UPLOAD_TIMEOUT_MS = 300_000
 const SAVE_TIMEOUT_MS = 30_000
 const WORK_IMAGE_MAX_BYTES = 15 * 1024 * 1024
 const WORK_IMAGE_TARGET_BYTES = Math.floor(14.5 * 1024 * 1024)
+const WORK_VIDEO_MAX_BYTES = 250 * 1024 * 1024
 const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
-const IMAGE_INPUT_ACCEPT = 'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.bmp,.tif,.tiff,.svg'
+const WORK_MEDIA_INPUT_ACCEPT = 'image/*,video/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.bmp,.tif,.tiff,.svg,.mp4,.mov,.m4v,.webm,.ogv,.ogg,.avi,.mkv,.3gp,.3g2,.mpeg,.mpg,.ts,.mts,.m2ts,.hevc,.h265'
 const SUPPORTED_IMAGE_EXT_RE = /\.(jpe?g|png|webp|hei[cf]|avif|gif|bmp|tiff?|svg)$/i
+const SUPPORTED_VIDEO_EXT_RE = /\.(mp4|mov|m4v|webm|ogv|ogg|avi|mkv|3gp|3g2|mpe?g|ts|mts|m2ts|hevc|h265)$/i
 
 async function loginAdmin(payload) {
   const res = await api.post('/api/auth/login', payload, { timeout: SAVE_TIMEOUT_MS })
@@ -65,6 +67,52 @@ function isSupportedImageLike(file) {
   const type = String(file?.type || '').toLowerCase()
   const name = String(file?.name || '')
   return isHeicLike(file) || type.startsWith('image/') || SUPPORTED_IMAGE_EXT_RE.test(name)
+}
+
+function isSupportedVideoLike(file) {
+  const type = String(file?.type || '').toLowerCase()
+  const name = String(file?.name || '')
+  return type.startsWith('video/') || SUPPORTED_VIDEO_EXT_RE.test(name)
+}
+
+function isSupportedWorkMediaLike(file) {
+  return isSupportedImageLike(file) || isSupportedVideoLike(file)
+}
+
+function getMediaKind(source) {
+  if (!source) return 'image'
+  if (typeof File !== 'undefined' && source instanceof File) {
+    return isSupportedVideoLike(source) ? 'video' : 'image'
+  }
+
+  const raw = String(source || '')
+  let path = raw
+  try {
+    path = new URL(raw).pathname
+  } catch {
+    path = raw.split('?')[0]
+  }
+
+  return SUPPORTED_VIDEO_EXT_RE.test(path) ? 'video' : 'image'
+}
+
+function WorkMedia({ src, alt, className, style, loading = 'lazy' }) {
+  if (getMediaKind(src) === 'video') {
+    return (
+      <video
+        key={`video:${src}`}
+        className={className}
+        style={style}
+        src={src}
+        controls
+        muted
+        playsInline
+        preload="metadata"
+      />
+    )
+  }
+
+  return <img key={`image:${src}`} className={className} style={style} src={src} alt={alt} loading={loading} />
 }
 
 function loadImageFromFile(file) {
@@ -1043,6 +1091,7 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid, prepareFile, 
   const inputRef = useRef(null)
   const objectUrlRef = useRef(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [previewKind, setPreviewKind] = useState('image')
   const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
@@ -1058,11 +1107,13 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid, prepareFile, 
 
     if (!file) {
       setPreviewUrl(null)
+      setPreviewKind('image')
       return
     }
 
     const url = URL.createObjectURL(file)
     objectUrlRef.current = url
+    setPreviewKind(getMediaKind(file))
     setPreviewUrl(url)
   }
 
@@ -1135,7 +1186,7 @@ function useImageFilePicker({ onFileSelected, validate, onInvalid, prepareFile, 
     }
   }
 
-  return { inputId, inputRef, previewUrl, open, onChange, clear, selectFile, setPreviewFromFile, isProcessing }
+  return { inputId, inputRef, previewUrl, previewKind, open, onChange, clear, selectFile, setPreviewFromFile, isProcessing }
 }
 
 async function fetchPortfolio() {
@@ -1542,6 +1593,17 @@ export default function Admin() {
     return { ...result, converted: normalized.converted || result.converted }
   }
 
+  async function prepareWorkMedia(file, label = 'media') {
+    if (!file) return { file, optimized: false, converted: false, video: false }
+    if (!isSupportedWorkMediaLike(file)) {
+      throw new Error('Please select a supported photo or video file.')
+    }
+    if (isSupportedVideoLike(file)) {
+      return { file, optimized: false, converted: false, video: true }
+    }
+    return cropAndOptimizeWorkImage(file, label)
+  }
+
   // Categories
   const categoriesQuery = useQuery({
     queryKey: ['categories'],
@@ -1645,6 +1707,7 @@ export default function Admin() {
     inputId: beforeInputId,
     inputRef: beforeInputRef,
     previewUrl: beforePreviewUrl,
+    previewKind: beforePreviewKind,
     onChange: onBeforeChange,
     selectFile: selectBeforeFile,
     clear: clearBeforeFile,
@@ -1653,7 +1716,7 @@ export default function Admin() {
     onFileSelected: (file) => setNewItem((s) => ({ ...s, before: file })),
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: (file) => cropAndOptimizeWorkImage(file, 'Before photo'),
+    prepareFile: (file) => prepareWorkMedia(file, 'Before media'),
     onPrepared: (result) => {
       if (result?.converted && result?.optimized) {
         setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG and optimized automatically.' })
@@ -1669,6 +1732,7 @@ export default function Admin() {
     inputId: afterInputId,
     inputRef: afterInputRef,
     previewUrl: afterPreviewUrl,
+    previewKind: afterPreviewKind,
     onChange: onAfterChange,
     selectFile: selectAfterFile,
     clear: clearAfterFile,
@@ -1677,7 +1741,7 @@ export default function Admin() {
     onFileSelected: (file) => setNewItem((s) => ({ ...s, after: file })),
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: (file) => cropAndOptimizeWorkImage(file, 'After photo'),
+    prepareFile: (file) => prepareWorkMedia(file, 'After media'),
     onPrepared: (result) => {
       if (result?.converted && result?.optimized) {
         setToast({ type: 'success', text: 'HEIC After photo was converted to JPG and optimized automatically.' })
@@ -1701,7 +1765,7 @@ export default function Admin() {
     onFileSelected: setEditWorkBeforeFile,
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: (file) => cropAndOptimizeWorkImage(file, 'Before photo'),
+    prepareFile: (file) => prepareWorkMedia(file, 'Before media'),
     onPrepared: (result) => {
       if (result?.converted && result?.optimized) {
         setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG and optimized automatically.' })
@@ -1725,7 +1789,7 @@ export default function Admin() {
     onFileSelected: setEditWorkAfterFile,
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
-    prepareFile: (file) => cropAndOptimizeWorkImage(file, 'After photo'),
+    prepareFile: (file) => prepareWorkMedia(file, 'After media'),
     onPrepared: (result) => {
       if (result?.converted && result?.optimized) {
         setToast({ type: 'success', text: 'HEIC After photo was converted to JPG and optimized automatically.' })
@@ -1739,8 +1803,9 @@ export default function Admin() {
 
   function validateWorkImage(file) {
     if (!file) return { ok: true }
-    if (file.size > WORK_IMAGE_MAX_BYTES) return { ok: false, message: 'Image is still too large after optimization. Please choose a slightly smaller file.' }
-    if (!isSupportedImageLike(file)) return { ok: false, message: 'Please select a supported image file.' }
+    if (!isSupportedWorkMediaLike(file)) return { ok: false, message: 'Please select a supported photo or video file.' }
+    if (isSupportedVideoLike(file) && file.size > WORK_VIDEO_MAX_BYTES) return { ok: false, message: 'Video is too large. Please choose a file up to 250MB.' }
+    if (!isSupportedVideoLike(file) && file.size > WORK_IMAGE_MAX_BYTES) return { ok: false, message: 'Image is still too large after optimization. Please choose a slightly smaller file.' }
     return { ok: true }
   }
 
@@ -1789,7 +1854,7 @@ export default function Admin() {
       return
     }
     if (!newItem.before || !newItem.after) {
-      setToast({ type: 'error', text: 'Please select both Before and After photos.' })
+      setToast({ type: 'error', text: 'Please select both Before and After media files.' })
       return
     }
     const fd = new FormData()
@@ -1958,7 +2023,9 @@ export default function Admin() {
         .admin-upload-title { font-size: 14px; font-weight: 650; }
         .admin-upload-sub { font-size: 12px; color: rgba(255,255,255,0.65); line-height: 1.5; }
         .admin-upload-preview { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-        .admin-upload-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .admin-upload-preview img,
+        .admin-upload-preview video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .admin-upload-preview video { pointer-events: auto; }
         .admin-upload-actions { position: absolute; inset: 0; z-index: 9999; display: flex; align-items: flex-start; justify-content: flex-end; padding: 10px; gap: 8px; pointer-events: none; }
         .admin-upload-action { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; display: grid; place-items: center; line-height: 1; user-select: none; -webkit-user-select: none; touch-action: manipulation; pointer-events: auto !important; }
         .admin-upload-action:hover { background: rgba(0,0,0,0.72); }
@@ -2083,14 +2150,13 @@ export default function Admin() {
                       <div key={item.id} style={styles.portfolioCard}>
                         <div style={{ display: 'flex', height: 363, position: 'relative' }}>
                           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                            <img
-                              key={editingWorkId === item.id && editWorkBeforePreviewUrl ? `preview:${editWorkBeforePreviewUrl}` : `remote:${item.before_url}`}
+                            <WorkMedia
                               src={editingWorkId === item.id && editWorkBeforePreviewUrl ? editWorkBeforePreviewUrl : item.before_url}
                               alt="Before"
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                               loading="lazy"
                             />
-                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.20)' }} />
+                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,23,23,0.20)', pointerEvents: 'none' }} />
                             <div className="admin-media-pill">BEFORE</div>
                             {editingWorkId === item.id && (
                               <>
@@ -2099,13 +2165,13 @@ export default function Admin() {
                                   ref={editWorkBeforeInputRef}
                                   className="admin-file-input"
                                   type="file"
-                                  accept={IMAGE_INPUT_ACCEPT}
+                                  accept={WORK_MEDIA_INPUT_ACCEPT}
                                   onChange={onEditWorkBeforeChange}
                                 />
                                 <label
                                   htmlFor={editWorkBeforeInputId}
                                   className="admin-img-change"
-                                  aria-label="Change before image"
+                                  aria-label="Change before media"
                                 >
                                   <Icon name="camera" />
                                 </label>
@@ -2113,8 +2179,7 @@ export default function Admin() {
                             )}
                           </div>
                           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                            <img
-                              key={editingWorkId === item.id && editWorkAfterPreviewUrl ? `preview:${editWorkAfterPreviewUrl}` : `remote:${item.after_url}`}
+                            <WorkMedia
                               src={editingWorkId === item.id && editWorkAfterPreviewUrl ? editWorkAfterPreviewUrl : item.after_url}
                               alt="After"
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
@@ -2128,13 +2193,13 @@ export default function Admin() {
                                   ref={editWorkAfterInputRef}
                                   className="admin-file-input"
                                   type="file"
-                                  accept={IMAGE_INPUT_ACCEPT}
+                                  accept={WORK_MEDIA_INPUT_ACCEPT}
                                   onChange={onEditWorkAfterChange}
                                 />
                                 <label
                                   htmlFor={editWorkAfterInputId}
                                   className="admin-img-change"
-                                  aria-label="Change after image"
+                                  aria-label="Change after media"
                                 >
                                   <Icon name="camera" />
                                 </label>
@@ -2213,7 +2278,7 @@ export default function Admin() {
                                   }}
                                   disabled={updateWorkMutation.isPending || isEditBeforeProcessing || isEditAfterProcessing}
                                 >
-                                  {isEditBeforeProcessing || isEditAfterProcessing ? 'Optimizing…' : item.id === savingWorkId ? 'Saving…' : 'Save'}
+                                  {isEditBeforeProcessing || isEditAfterProcessing ? 'Processing…' : item.id === savingWorkId ? 'Saving…' : 'Save'}
                                 </button>
                                 <button type="button" style={styles.buttonSubtle} onClick={cancelEditWork}>
                                   Cancel
@@ -2287,7 +2352,7 @@ export default function Admin() {
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ fontSize: 16, fontWeight: 600 }}>Upload</div>
-                    <div style={{ color: '#bdbdbd', fontSize: 12 }}>Large photos are optimized automatically before upload</div>
+                    <div style={{ color: '#bdbdbd', fontSize: 12 }}>Photos are optimized automatically; videos up to 250MB are supported</div>
                   </div>
 
                   <div className="admin-grid-2">
@@ -2331,7 +2396,7 @@ export default function Admin() {
                   </Field>
 
                   <div className="admin-grid-2">
-                    <Field label="Before Photo">
+                    <Field label="Before Media">
                       <label
                         className="admin-upload-box admin-upload-box--work"
                         htmlFor={beforeInputId}
@@ -2349,7 +2414,7 @@ export default function Admin() {
                           ref={beforeInputRef}
                           className="admin-file-input"
                           type="file"
-                          accept={IMAGE_INPUT_ACCEPT}
+                          accept={WORK_MEDIA_INPUT_ACCEPT}
                           onChange={onBeforeChange}
                         />
 
@@ -2358,24 +2423,24 @@ export default function Admin() {
                             <div className="admin-upload-icon" aria-hidden="true">
                               <Icon name="upload" />
                             </div>
-                            <div className="admin-upload-title">Click to upload Before Photo</div>
-                            <div className="admin-upload-sub">or drag and drop an image here • files over 15MB are auto-optimized</div>
+                            <div className="admin-upload-title">Click to upload Before media</div>
+                            <div className="admin-upload-sub">photos or video, including iPhone .MOV • videos up to 250MB</div>
                           </div>
                         )}
 
                         {beforePreviewUrl && (
                           <>
                             <div className="admin-upload-preview">
-                              <img key={`preview:${beforePreviewUrl}`} src={beforePreviewUrl} alt="Before preview" />
+                              <WorkMedia src={beforePreviewUrl} alt="Before preview" />
                               <div className="admin-media-pill">BEFORE</div>
-                              <div className="admin-upload-chip">{isBeforeProcessing ? 'Optimizing…' : 'Click to change'}</div>
+                              <div className="admin-upload-chip">{isBeforeProcessing ? 'Processing…' : beforePreviewKind === 'video' ? 'Video selected' : 'Click to change'}</div>
                             </div>
                             <div className="admin-upload-actions">
                               <button
                                 className="admin-upload-action"
                                 type="button"
                                 onClick={clearBeforeFile}
-                                aria-label="Remove before image"
+                                aria-label="Remove before media"
                               >
                                 ×
                               </button>
@@ -2385,7 +2450,7 @@ export default function Admin() {
                       </label>
                     </Field>
 
-                    <Field label="After Photo">
+                    <Field label="After Media">
                       <label
                         className="admin-upload-box admin-upload-box--work"
                         htmlFor={afterInputId}
@@ -2403,7 +2468,7 @@ export default function Admin() {
                           ref={afterInputRef}
                           className="admin-file-input"
                           type="file"
-                          accept={IMAGE_INPUT_ACCEPT}
+                          accept={WORK_MEDIA_INPUT_ACCEPT}
                           onChange={onAfterChange}
                         />
 
@@ -2412,24 +2477,24 @@ export default function Admin() {
                             <div className="admin-upload-icon" aria-hidden="true">
                               <Icon name="image" />
                             </div>
-                            <div className="admin-upload-title">Click to upload After Photo</div>
-                            <div className="admin-upload-sub">or drag and drop an image here • files over 15MB are auto-optimized</div>
+                            <div className="admin-upload-title">Click to upload After media</div>
+                            <div className="admin-upload-sub">photos or video, including iPhone .MOV • videos up to 250MB</div>
                           </div>
                         )}
 
                         {afterPreviewUrl && (
                           <>
                             <div className="admin-upload-preview">
-                              <img key={`preview:${afterPreviewUrl}`} src={afterPreviewUrl} alt="After preview" />
+                              <WorkMedia src={afterPreviewUrl} alt="After preview" />
                               <div className="admin-media-pill after">AFTER</div>
-                              <div className="admin-upload-chip">{isAfterProcessing ? 'Optimizing…' : 'Click to change'}</div>
+                              <div className="admin-upload-chip">{isAfterProcessing ? 'Processing…' : afterPreviewKind === 'video' ? 'Video selected' : 'Click to change'}</div>
                             </div>
                             <div className="admin-upload-actions">
                               <button
                                 className="admin-upload-action"
                                 type="button"
                                 onClick={clearAfterFile}
-                                aria-label="Remove after image"
+                                aria-label="Remove after media"
                               >
                                 ×
                               </button>
@@ -2455,7 +2520,7 @@ export default function Admin() {
                         !newItem.after
                       }
                     >
-                      {isBeforeProcessing || isAfterProcessing ? 'Optimizing…' : createMutation.isPending ? 'Uploading…' : 'Add to Portfolio'}
+                      {isBeforeProcessing || isAfterProcessing ? 'Processing…' : createMutation.isPending ? 'Uploading…' : 'Add to Portfolio'}
                     </button>
                   </div>
                 </form>

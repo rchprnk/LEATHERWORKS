@@ -3,16 +3,45 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useSiteData } from '../context/SiteDataContext.jsx'
 import { getPortfolio } from '../services/api'
 
+const VIDEO_EXT_RE = /\.(mp4|mov|m4v|webm|ogv|ogg|avi|mkv|3gp|3g2|mpe?g|ts|mts|m2ts|hevc|h265)$/i
+
+function getMediaKind(src) {
+  const raw = String(src || '')
+  let path = raw
+  try {
+    path = new URL(raw).pathname
+  } catch {
+    path = raw.split('?')[0]
+  }
+  return VIDEO_EXT_RE.test(path) ? 'video' : 'image'
+}
+
+function PortfolioMedia({ src, alt }) {
+  if (getMediaKind(src) === 'video') {
+    return (
+      <video
+        src={src}
+        controls
+        muted
+        playsInline
+        preload="metadata"
+      />
+    )
+  }
+
+  return <img src={src} alt={alt} loading="lazy" />
+}
+
 function PortfolioCard({ item }) {
   return (
     <article className="surface-card portfolio-card">
       <div className="portfolio-card__pair">
         <div className="portfolio-card__panel">
-          <img src={item.before_url} alt={`${item.title} before`} />
+          <PortfolioMedia src={item.before_url} alt={`${item.title} before`} />
           <span className="portfolio-badge">Before</span>
         </div>
         <div className="portfolio-card__panel">
-          <img src={item.after_url} alt={`${item.title} after`} />
+          <PortfolioMedia src={item.after_url} alt={`${item.title} after`} />
           <span className="portfolio-badge portfolio-badge--after">After</span>
         </div>
       </div>
@@ -143,7 +172,8 @@ export default function Portfolio() {
         .portfolio-card__panel:first-child {
           border-right: 2px solid rgba(111, 83, 49, 0.38);
         }
-        .portfolio-card__panel img {
+        .portfolio-card__panel img,
+        .portfolio-card__panel video {
           width: 100%;
           height: 100%;
           object-fit: cover;

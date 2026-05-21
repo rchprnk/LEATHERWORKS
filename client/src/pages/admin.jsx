@@ -7,12 +7,21 @@ const UPLOAD_TIMEOUT_MS = 300_000
 const SAVE_TIMEOUT_MS = 30_000
 const WORK_IMAGE_MAX_BYTES = 15 * 1024 * 1024
 const WORK_IMAGE_TARGET_BYTES = Math.floor(14.5 * 1024 * 1024)
-const WORK_VIDEO_MAX_BYTES = 250 * 1024 * 1024
 const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
+const VIDEO_COMPRESSION_MAX_SIDE = 1280
+const VIDEO_COMPRESSION_FRAME_RATE = 30
+const VIDEO_COMPRESSION_BITRATE = 2_500_000
 const WORK_MEDIA_INPUT_ACCEPT = 'image/*,video/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.bmp,.tif,.tiff,.svg,.mp4,.mov,.m4v,.webm,.ogv,.ogg,.avi,.mkv,.3gp,.3g2,.mpeg,.mpg,.ts,.mts,.m2ts,.hevc,.h265'
 const SUPPORTED_IMAGE_EXT_RE = /\.(jpe?g|png|webp|hei[cf]|avif|gif|bmp|tiff?|svg)$/i
 const SUPPORTED_VIDEO_EXT_RE = /\.(mp4|mov|m4v|webm|ogv|ogg|avi|mkv|3gp|3g2|mpe?g|ts|mts|m2ts|hevc|h265)$/i
+const VIDEO_RECORDER_TYPES = [
+  'video/webm;codecs=vp9',
+  'video/webm;codecs=vp8',
+  'video/webm',
+  'video/mp4;codecs=h264',
+  'video/mp4',
+]
 
 async function loginAdmin(payload) {
   const res = await api.post('/api/auth/login', payload, { timeout: SAVE_TIMEOUT_MS })
@@ -55,6 +64,10 @@ function extensionForMime(type) {
   if (type === 'image/png') return 'png'
   if (type === 'image/webp') return 'webp'
   return 'jpg'
+}
+
+function extensionForVideoMime(type) {
+  return String(type || '').includes('mp4') ? 'mp4' : 'webm'
 }
 
 function isHeicLike(file) {
@@ -287,6 +300,156 @@ async function optimizeLargeImage(file, { maxBytes = WORK_IMAGE_MAX_BYTES, targe
   }
 
   return { file, optimized: false, converted: normalized.converted }
+}
+
+function getSupportedVideoRecorderType() {
+  if (typeof MediaRecorder === 'undefined') return ''
+  return VIDEO_RECORDER_TYPES.find((type) => MediaRecorder.isTypeSupported?.(type)) || ''
+}
+
+function loadVideoElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const video = document.createElement('video')
+    video.muted = true
+    video.playsInline = true
+    video.preload = 'metadata'
+    video.onloadedmetadata = () => resolve({ video, url })
+    video.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to read video file.'))
+    }
+    video.src = url
+  })
+}
+
+async function compressVideoFile(file) {
+  if (!file) return { file, optimized: false, converted: false, video: true }
+  if (
+    typeof document === 'undefined' ||
+    typeof MediaRecorder === 'undefined' ||
+    typeof HTMLCanvasElement === 'undefined'
+  ) {
+    return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
+  }
+
+  const recorderType = getSupportedVideoRecorderType()
+  if (!recorderType) {
+    return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
+  }
+
+  let loaded = null
+  let frameTimer = null
+  let activeRecorder = null
+  const activeStreams = []
+  try {
+    loaded = await loadVideoElement(file)
+    const { video, url } = loaded
+    const sourceWidth = video.videoWidth || 0
+    const sourceHeight = video.videoHeight || 0
+    const duration = Number(video.duration || 0)
+
+    if (!sourceWidth || !sourceHeight || !Number.isFinite(duration) || duration <= 0) {
+      URL.revokeObjectURL(url)
+      return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
+    }
+
+    const longestSide = Math.max(sourceWidth, sourceHeight)
+    const scale = Math.min(1, VIDEO_COMPRESSION_MAX_SIDE / longestSide)
+    const width = Math.max(2, Math.round(sourceWidth * scale / 2) * 2)
+    const height = Math.max(2, Math.round(sourceHeight * scale / 2) * 2)
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d', { alpha: false })
+    const stream = canvas.captureStream?.(VIDEO_COMPRESSION_FRAME_RATE)
+
+    if (!context || !stream) {
+      URL.revokeObjectURL(url)
+      return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
+    }
+    activeStreams.push(stream)
+
+    const sourceStream = video.captureStream?.() || video.mozCaptureStream?.()
+    if (sourceStream) {
+      activeStreams.push(sourceStream)
+      sourceStream.getAudioTracks().forEach((track) => stream.addTrack(track))
+    }
+
+    const chunks = []
+    const recorder = new MediaRecorder(stream, {
+      mimeType: recorderType,
+      videoBitsPerSecond: VIDEO_COMPRESSION_BITRATE,
+    })
+    activeRecorder = recorder
+    const finished = new Promise((resolve, reject) => {
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) chunks.push(event.data)
+      }
+      recorder.onerror = () => reject(new Error('Failed to compress video.'))
+      recorder.onstop = resolve
+    })
+
+    let drawing = true
+    const drawFrame = () => {
+      if (!drawing) return
+      context.drawImage(video, 0, 0, width, height)
+      if (video.requestVideoFrameCallback) {
+        video.requestVideoFrameCallback(drawFrame)
+      } else {
+        frameTimer = window.setTimeout(drawFrame, Math.round(1000 / VIDEO_COMPRESSION_FRAME_RATE))
+      }
+    }
+
+    await new Promise((resolve, reject) => {
+      video.onended = resolve
+      video.onerror = () => reject(new Error('Failed to play video for compression.'))
+      recorder.start(1000)
+      drawFrame()
+      video.currentTime = 0
+      const playback = video.play()
+      if (playback?.catch) playback.catch(reject)
+    })
+
+    drawing = false
+    if (frameTimer) window.clearTimeout(frameTimer)
+    if (recorder.state !== 'inactive') recorder.stop()
+    await finished
+    activeStreams.forEach((activeStream) => {
+      activeStream.getTracks().forEach((track) => track.stop())
+    })
+    URL.revokeObjectURL(url)
+
+    const outputType = recorder.mimeType || recorderType.split(';')[0]
+    const blob = new Blob(chunks, { type: outputType })
+    if (!blob.size || blob.size >= file.size) {
+      return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
+    }
+
+    const nextFile = new File(
+      [blob],
+      fileNameWithExtension(file.name, extensionForVideoMime(outputType)),
+      { type: outputType, lastModified: Date.now() }
+    )
+
+    return {
+      file: nextFile,
+      optimized: true,
+      converted: true,
+      video: true,
+      originalSize: file.size,
+      compressedSize: nextFile.size,
+    }
+  } catch {
+    return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
+  } finally {
+    if (frameTimer) window.clearTimeout(frameTimer)
+    if (activeRecorder?.state && activeRecorder.state !== 'inactive') activeRecorder.stop()
+    activeStreams.forEach((activeStream) => {
+      activeStream.getTracks().forEach((track) => track.stop())
+    })
+    if (loaded?.url) URL.revokeObjectURL(loaded.url)
+  }
 }
 
 function useImageCropper() {
@@ -1599,9 +1762,28 @@ export default function Admin() {
       throw new Error('Please select a supported photo or video file.')
     }
     if (isSupportedVideoLike(file)) {
-      return { file, optimized: false, converted: false, video: true }
+      return compressVideoFile(file)
     }
     return cropAndOptimizeWorkImage(file, label)
+  }
+
+  function showWorkMediaPreparedToast(label, result) {
+    if (result?.video) {
+      if (result?.optimized) {
+        setToast({ type: 'success', text: `${label} video was compressed automatically.` })
+      } else if (result?.compressionSkipped) {
+        setToast({ type: 'success', text: `${label} video selected. Browser compression was not available, so the original file will be uploaded.` })
+      }
+      return
+    }
+
+    if (result?.converted && result?.optimized) {
+      setToast({ type: 'success', text: `HEIC ${label} photo was converted to JPG and optimized automatically.` })
+    } else if (result?.converted) {
+      setToast({ type: 'success', text: `HEIC ${label} photo was converted to JPG automatically.` })
+    } else if (result?.optimized) {
+      setToast({ type: 'success', text: `Large ${label} photo was optimized automatically.` })
+    }
   }
 
   // Categories
@@ -1717,15 +1899,7 @@ export default function Admin() {
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: (file) => prepareWorkMedia(file, 'Before media'),
-    onPrepared: (result) => {
-      if (result?.converted && result?.optimized) {
-        setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG and optimized automatically.' })
-      } else if (result?.converted) {
-        setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG automatically.' })
-      } else if (result?.optimized) {
-        setToast({ type: 'success', text: 'Large Before photo was optimized automatically.' })
-      }
-    },
+    onPrepared: (result) => showWorkMediaPreparedToast('Before', result),
   })
 
   const {
@@ -1742,15 +1916,7 @@ export default function Admin() {
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: (file) => prepareWorkMedia(file, 'After media'),
-    onPrepared: (result) => {
-      if (result?.converted && result?.optimized) {
-        setToast({ type: 'success', text: 'HEIC After photo was converted to JPG and optimized automatically.' })
-      } else if (result?.converted) {
-        setToast({ type: 'success', text: 'HEIC After photo was converted to JPG automatically.' })
-      } else if (result?.optimized) {
-        setToast({ type: 'success', text: 'Large After photo was optimized automatically.' })
-      }
-    },
+    onPrepared: (result) => showWorkMediaPreparedToast('After', result),
   })
 
   const [editWorkBeforeFile, setEditWorkBeforeFile] = useState(null)
@@ -1766,15 +1932,7 @@ export default function Admin() {
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: (file) => prepareWorkMedia(file, 'Before media'),
-    onPrepared: (result) => {
-      if (result?.converted && result?.optimized) {
-        setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG and optimized automatically.' })
-      } else if (result?.converted) {
-        setToast({ type: 'success', text: 'HEIC Before photo was converted to JPG automatically.' })
-      } else if (result?.optimized) {
-        setToast({ type: 'success', text: 'Large Before photo was optimized automatically.' })
-      }
-    },
+    onPrepared: (result) => showWorkMediaPreparedToast('Before', result),
   })
 
   const [editWorkAfterFile, setEditWorkAfterFile] = useState(null)
@@ -1790,21 +1948,12 @@ export default function Admin() {
     validate: validateWorkImage,
     onInvalid: (message) => setToast({ type: 'error', text: message }),
     prepareFile: (file) => prepareWorkMedia(file, 'After media'),
-    onPrepared: (result) => {
-      if (result?.converted && result?.optimized) {
-        setToast({ type: 'success', text: 'HEIC After photo was converted to JPG and optimized automatically.' })
-      } else if (result?.converted) {
-        setToast({ type: 'success', text: 'HEIC After photo was converted to JPG automatically.' })
-      } else if (result?.optimized) {
-        setToast({ type: 'success', text: 'Large After photo was optimized automatically.' })
-      }
-    },
+    onPrepared: (result) => showWorkMediaPreparedToast('After', result),
   })
 
   function validateWorkImage(file) {
     if (!file) return { ok: true }
     if (!isSupportedWorkMediaLike(file)) return { ok: false, message: 'Please select a supported photo or video file.' }
-    if (isSupportedVideoLike(file) && file.size > WORK_VIDEO_MAX_BYTES) return { ok: false, message: 'Video is too large. Please choose a file up to 250MB.' }
     if (!isSupportedVideoLike(file) && file.size > WORK_IMAGE_MAX_BYTES) return { ok: false, message: 'Image is still too large after optimization. Please choose a slightly smaller file.' }
     return { ok: true }
   }
@@ -2352,7 +2501,7 @@ export default function Admin() {
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ fontSize: 16, fontWeight: 600 }}>Upload</div>
-                    <div style={{ color: '#bdbdbd', fontSize: 12 }}>Photos are optimized automatically; videos up to 250MB are supported</div>
+                    <div style={{ color: '#bdbdbd', fontSize: 12 }}>Photos and videos are optimized automatically before upload</div>
                   </div>
 
                   <div className="admin-grid-2">
@@ -2424,7 +2573,7 @@ export default function Admin() {
                               <Icon name="upload" />
                             </div>
                             <div className="admin-upload-title">Click to upload Before media</div>
-                            <div className="admin-upload-sub">photos or video, including iPhone .MOV • videos up to 250MB</div>
+                            <div className="admin-upload-sub">photos or video, including iPhone .MOV • videos are compressed automatically</div>
                           </div>
                         )}
 
@@ -2478,7 +2627,7 @@ export default function Admin() {
                               <Icon name="image" />
                             </div>
                             <div className="admin-upload-title">Click to upload After media</div>
-                            <div className="admin-upload-sub">photos or video, including iPhone .MOV • videos up to 250MB</div>
+                            <div className="admin-upload-sub">photos or video, including iPhone .MOV • videos are compressed automatically</div>
                           </div>
                         )}
 

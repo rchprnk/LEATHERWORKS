@@ -109,8 +109,8 @@ function getMediaKind(source) {
   return SUPPORTED_VIDEO_EXT_RE.test(path) ? 'video' : 'image'
 }
 
-function WorkMedia({ src, alt, className, style, loading = 'lazy' }) {
-  if (getMediaKind(src) === 'video') {
+function WorkMedia({ src, alt, className, style, loading = 'lazy', kind }) {
+  if ((kind || getMediaKind(src)) === 'video') {
     return (
       <video
         key={`video:${src}`}
@@ -1924,6 +1924,7 @@ export default function Admin() {
     inputId: editWorkBeforeInputId,
     inputRef: editWorkBeforeInputRef,
     previewUrl: editWorkBeforePreviewUrl,
+    previewKind: editWorkBeforePreviewKind,
     onChange: onEditWorkBeforeChange,
     clear: clearEditWorkBeforeFile,
     isProcessing: isEditBeforeProcessing,
@@ -1940,6 +1941,7 @@ export default function Admin() {
     inputId: editWorkAfterInputId,
     inputRef: editWorkAfterInputRef,
     previewUrl: editWorkAfterPreviewUrl,
+    previewKind: editWorkAfterPreviewKind,
     onChange: onEditWorkAfterChange,
     clear: clearEditWorkAfterFile,
     isProcessing: isEditAfterProcessing,
@@ -2301,6 +2303,7 @@ export default function Admin() {
                           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                             <WorkMedia
                               src={editingWorkId === item.id && editWorkBeforePreviewUrl ? editWorkBeforePreviewUrl : item.before_url}
+                              kind={editingWorkId === item.id && editWorkBeforePreviewUrl ? editWorkBeforePreviewKind : undefined}
                               alt="Before"
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                               loading="lazy"
@@ -2330,6 +2333,7 @@ export default function Admin() {
                           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                             <WorkMedia
                               src={editingWorkId === item.id && editWorkAfterPreviewUrl ? editWorkAfterPreviewUrl : item.after_url}
+                              kind={editingWorkId === item.id && editWorkAfterPreviewUrl ? editWorkAfterPreviewKind : undefined}
                               alt="After"
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                               loading="lazy"
@@ -2580,7 +2584,7 @@ export default function Admin() {
                         {beforePreviewUrl && (
                           <>
                             <div className="admin-upload-preview">
-                              <WorkMedia src={beforePreviewUrl} alt="Before preview" />
+                              <WorkMedia src={beforePreviewUrl} kind={beforePreviewKind} alt="Before preview" />
                               <div className="admin-media-pill">BEFORE</div>
                               <div className="admin-upload-chip">{isBeforeProcessing ? 'Processing…' : beforePreviewKind === 'video' ? 'Video selected' : 'Click to change'}</div>
                             </div>
@@ -2634,7 +2638,7 @@ export default function Admin() {
                         {afterPreviewUrl && (
                           <>
                             <div className="admin-upload-preview">
-                              <WorkMedia src={afterPreviewUrl} alt="After preview" />
+                              <WorkMedia src={afterPreviewUrl} kind={afterPreviewKind} alt="After preview" />
                               <div className="admin-media-pill after">AFTER</div>
                               <div className="admin-upload-chip">{isAfterProcessing ? 'Processing…' : afterPreviewKind === 'video' ? 'Video selected' : 'Click to change'}</div>
                             </div>

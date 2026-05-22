@@ -324,7 +324,6 @@ export default function Contact() {
                       </p>
                     ))}
                   </div>
-                  <p>Appointments available by message</p>
                 </div>
               </div>
             </div>

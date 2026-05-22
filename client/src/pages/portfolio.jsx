@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useSiteData } from '../context/SiteDataContext.jsx'
+import { SmartVideo } from '../components/media.jsx'
+import { useSiteData } from '../context/siteData.js'
 import { getPortfolio } from '../services/api'
 
 const VIDEO_EXT_RE = /\.(mp4|mov|m4v|webm|ogv|ogg|avi|mkv|3gp|3g2|mpe?g|ts|mts|m2ts|hevc|h265)$/i
@@ -19,7 +20,7 @@ function getMediaKind(src) {
 function PortfolioMedia({ src, alt }) {
   if (getMediaKind(src) === 'video') {
     return (
-      <video
+      <SmartVideo
         src={src}
         controls
         muted

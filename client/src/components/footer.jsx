@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useSiteData } from '../context/SiteDataContext.jsx'
+import { useSiteData } from '../context/siteData.js'
 
 export function Footer() {
   const { contact } = useSiteData()

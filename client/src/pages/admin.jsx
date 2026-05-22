@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff } from 'lucide-react'
+import { SmartVideo } from '../components/media.jsx'
 import api, { getAdminToken, setAdminToken } from '../services/api'
 
 const UPLOAD_TIMEOUT_MS = 300_000
@@ -9,19 +10,9 @@ const WORK_IMAGE_MAX_BYTES = 15 * 1024 * 1024
 const WORK_IMAGE_TARGET_BYTES = Math.floor(14.5 * 1024 * 1024)
 const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
-const VIDEO_COMPRESSION_MAX_SIDE = 1280
-const VIDEO_COMPRESSION_FRAME_RATE = 30
-const VIDEO_COMPRESSION_BITRATE = 2_500_000
 const WORK_MEDIA_INPUT_ACCEPT = 'image/*,video/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.bmp,.tif,.tiff,.svg,.mp4,.mov,.m4v,.webm,.ogv,.ogg,.avi,.mkv,.3gp,.3g2,.mpeg,.mpg,.ts,.mts,.m2ts,.hevc,.h265'
 const SUPPORTED_IMAGE_EXT_RE = /\.(jpe?g|png|webp|hei[cf]|avif|gif|bmp|tiff?|svg)$/i
 const SUPPORTED_VIDEO_EXT_RE = /\.(mp4|mov|m4v|webm|ogv|ogg|avi|mkv|3gp|3g2|mpe?g|ts|mts|m2ts|hevc|h265)$/i
-const VIDEO_RECORDER_TYPES = [
-  'video/webm;codecs=vp9',
-  'video/webm;codecs=vp8',
-  'video/webm',
-  'video/mp4;codecs=h264',
-  'video/mp4',
-]
 
 async function loginAdmin(payload) {
   const res = await api.post('/api/auth/login', payload, { timeout: SAVE_TIMEOUT_MS })
@@ -66,10 +57,6 @@ function extensionForMime(type) {
   return 'jpg'
 }
 
-function extensionForVideoMime(type) {
-  return String(type || '').includes('mp4') ? 'mp4' : 'webm'
-}
-
 function isHeicLike(file) {
   const type = String(file?.type || '').toLowerCase()
   const name = String(file?.name || '').toLowerCase()
@@ -112,7 +99,7 @@ function getMediaKind(source) {
 function WorkMedia({ src, alt, className, style, loading = 'lazy', kind }) {
   if ((kind || getMediaKind(src)) === 'video') {
     return (
-      <video
+      <SmartVideo
         key={`video:${src}`}
         className={className}
         style={style}
@@ -120,7 +107,9 @@ function WorkMedia({ src, alt, className, style, loading = 'lazy', kind }) {
         controls
         muted
         playsInline
-        preload="metadata"
+        preload="none"
+        rootMargin="160px 0px"
+        capturePoster={false}
       />
     )
   }
@@ -302,154 +291,9 @@ async function optimizeLargeImage(file, { maxBytes = WORK_IMAGE_MAX_BYTES, targe
   return { file, optimized: false, converted: normalized.converted }
 }
 
-function getSupportedVideoRecorderType() {
-  if (typeof MediaRecorder === 'undefined') return ''
-  return VIDEO_RECORDER_TYPES.find((type) => MediaRecorder.isTypeSupported?.(type)) || ''
-}
-
-function loadVideoElement(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const video = document.createElement('video')
-    video.muted = true
-    video.playsInline = true
-    video.preload = 'metadata'
-    video.onloadedmetadata = () => resolve({ video, url })
-    video.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('Failed to read video file.'))
-    }
-    video.src = url
-  })
-}
-
 async function compressVideoFile(file) {
   if (!file) return { file, optimized: false, converted: false, video: true }
-  if (
-    typeof document === 'undefined' ||
-    typeof MediaRecorder === 'undefined' ||
-    typeof HTMLCanvasElement === 'undefined'
-  ) {
-    return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
-  }
-
-  const recorderType = getSupportedVideoRecorderType()
-  if (!recorderType) {
-    return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
-  }
-
-  let loaded = null
-  let frameTimer = null
-  let activeRecorder = null
-  const activeStreams = []
-  try {
-    loaded = await loadVideoElement(file)
-    const { video, url } = loaded
-    const sourceWidth = video.videoWidth || 0
-    const sourceHeight = video.videoHeight || 0
-    const duration = Number(video.duration || 0)
-
-    if (!sourceWidth || !sourceHeight || !Number.isFinite(duration) || duration <= 0) {
-      URL.revokeObjectURL(url)
-      return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
-    }
-
-    const longestSide = Math.max(sourceWidth, sourceHeight)
-    const scale = Math.min(1, VIDEO_COMPRESSION_MAX_SIDE / longestSide)
-    const width = Math.max(2, Math.round(sourceWidth * scale / 2) * 2)
-    const height = Math.max(2, Math.round(sourceHeight * scale / 2) * 2)
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const context = canvas.getContext('2d', { alpha: false })
-    const stream = canvas.captureStream?.(VIDEO_COMPRESSION_FRAME_RATE)
-
-    if (!context || !stream) {
-      URL.revokeObjectURL(url)
-      return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
-    }
-    activeStreams.push(stream)
-
-    const sourceStream = video.captureStream?.() || video.mozCaptureStream?.()
-    if (sourceStream) {
-      activeStreams.push(sourceStream)
-      sourceStream.getAudioTracks().forEach((track) => stream.addTrack(track))
-    }
-
-    const chunks = []
-    const recorder = new MediaRecorder(stream, {
-      mimeType: recorderType,
-      videoBitsPerSecond: VIDEO_COMPRESSION_BITRATE,
-    })
-    activeRecorder = recorder
-    const finished = new Promise((resolve, reject) => {
-      recorder.ondataavailable = (event) => {
-        if (event.data?.size) chunks.push(event.data)
-      }
-      recorder.onerror = () => reject(new Error('Failed to compress video.'))
-      recorder.onstop = resolve
-    })
-
-    let drawing = true
-    const drawFrame = () => {
-      if (!drawing) return
-      context.drawImage(video, 0, 0, width, height)
-      if (video.requestVideoFrameCallback) {
-        video.requestVideoFrameCallback(drawFrame)
-      } else {
-        frameTimer = window.setTimeout(drawFrame, Math.round(1000 / VIDEO_COMPRESSION_FRAME_RATE))
-      }
-    }
-
-    await new Promise((resolve, reject) => {
-      video.onended = resolve
-      video.onerror = () => reject(new Error('Failed to play video for compression.'))
-      recorder.start(1000)
-      drawFrame()
-      video.currentTime = 0
-      const playback = video.play()
-      if (playback?.catch) playback.catch(reject)
-    })
-
-    drawing = false
-    if (frameTimer) window.clearTimeout(frameTimer)
-    if (recorder.state !== 'inactive') recorder.stop()
-    await finished
-    activeStreams.forEach((activeStream) => {
-      activeStream.getTracks().forEach((track) => track.stop())
-    })
-    URL.revokeObjectURL(url)
-
-    const outputType = recorder.mimeType || recorderType.split(';')[0]
-    const blob = new Blob(chunks, { type: outputType })
-    if (!blob.size || blob.size >= file.size) {
-      return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
-    }
-
-    const nextFile = new File(
-      [blob],
-      fileNameWithExtension(file.name, extensionForVideoMime(outputType)),
-      { type: outputType, lastModified: Date.now() }
-    )
-
-    return {
-      file: nextFile,
-      optimized: true,
-      converted: true,
-      video: true,
-      originalSize: file.size,
-      compressedSize: nextFile.size,
-    }
-  } catch {
-    return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
-  } finally {
-    if (frameTimer) window.clearTimeout(frameTimer)
-    if (activeRecorder?.state && activeRecorder.state !== 'inactive') activeRecorder.stop()
-    activeStreams.forEach((activeStream) => {
-      activeStream.getTracks().forEach((track) => track.stop())
-    })
-    if (loaded?.url) URL.revokeObjectURL(loaded.url)
-  }
+  return { file, optimized: false, converted: false, video: true, compressionSkipped: true }
 }
 
 function useImageCropper() {
@@ -1357,8 +1201,18 @@ async function fetchPortfolio() {
   return res.data?.data ?? res.data
 }
 
-async function createPortfolio(formData) {
-  const res = await api.post('/api/portfolio', formData, { timeout: UPLOAD_TIMEOUT_MS })
+function getUploadPercent(progressEvent) {
+  const total = Number(progressEvent?.total || 0)
+  const loaded = Number(progressEvent?.loaded || 0)
+  if (!total || !loaded) return null
+  return Math.min(99, Math.max(1, Math.round((loaded / total) * 100)))
+}
+
+async function createPortfolio({ formData, onUploadProgress }) {
+  const res = await api.post('/api/portfolio', formData, {
+    timeout: UPLOAD_TIMEOUT_MS,
+    onUploadProgress,
+  })
   return res.data
 }
 
@@ -1367,8 +1221,11 @@ async function deletePortfolio(id) {
   return res.data
 }
 
-async function updatePortfolio({ id, data }) {
-  const res = await api.put(`/api/portfolio/${id}`, data, { timeout: UPLOAD_TIMEOUT_MS })
+async function updatePortfolio({ id, data, onUploadProgress }) {
+  const res = await api.put(`/api/portfolio/${id}`, data, {
+    timeout: UPLOAD_TIMEOUT_MS,
+    onUploadProgress,
+  })
   return res.data
 }
 
@@ -1533,6 +1390,23 @@ function Icon({ name }) {
   return null
 }
 
+function UploadProgressBar({ value }) {
+  if (value === null || value === undefined) return null
+  const percent = Math.min(100, Math.max(0, Math.round(value)))
+
+  return (
+    <div className="admin-upload-progress" aria-label={`Upload progress ${percent}%`}>
+      <div className="admin-upload-progress__meta">
+        <span>Uploading</span>
+        <strong>{percent}%</strong>
+      </div>
+      <div className="admin-upload-progress__track">
+        <div className="admin-upload-progress__bar" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  )
+}
+
 function AdminAuthScreen({ mode, user, onLogin, onPasswordChanged, loading, error }) {
   const [formError, setFormError] = useState('')
 
@@ -1655,6 +1529,8 @@ export default function Admin() {
   const [editingWorkId, setEditingWorkId] = useState(null)
   const [editWorkForm, setEditWorkForm] = useState({ title: '', description: '' })
   const [savingWorkId, setSavingWorkId] = useState(null)
+  const [createUploadProgress, setCreateUploadProgress] = useState(null)
+  const [workUploadProgress, setWorkUploadProgress] = useState({})
   const [authUser, setAuthUser] = useState(null)
 
   const sessionQuery = useQuery({
@@ -1770,9 +1646,9 @@ export default function Admin() {
   function showWorkMediaPreparedToast(label, result) {
     if (result?.video) {
       if (result?.optimized) {
-        setToast({ type: 'success', text: `${label} video was compressed automatically.` })
+        setToast({ type: 'success', text: `${label} video is ready to upload.` })
       } else if (result?.compressionSkipped) {
-        setToast({ type: 'success', text: `${label} video selected. Browser compression was not available, so the original file will be uploaded.` })
+        setToast({ type: 'success', text: `${label} video selected. It will be uploaded without extra browser processing.` })
       }
       return
     }
@@ -1838,11 +1714,18 @@ export default function Admin() {
 
   const createMutation = useMutation({
     mutationFn: createPortfolio,
+    onMutate: () => {
+      setCreateUploadProgress(0)
+    },
     onSuccess: async () => {
+      setCreateUploadProgress(100)
       await qc.invalidateQueries({ queryKey: ['portfolio'] })
       setToast({ type: 'success', text: 'Portfolio item added.' })
     },
     onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to add item.' }),
+    onSettled: () => {
+      window.setTimeout(() => setCreateUploadProgress(null), 650)
+    },
   })
 
   const deleteMutation = useMutation({
@@ -1862,8 +1745,10 @@ export default function Admin() {
     mutationFn: updatePortfolio,
     onMutate: async ({ id }) => {
       setSavingWorkId(id)
+      setWorkUploadProgress((prev) => ({ ...prev, [id]: 0 }))
     },
     onSuccess: async (updated) => {
+      if (updated?.id) setWorkUploadProgress((prev) => ({ ...prev, [updated.id]: 100 }))
       qc.setQueryData(['portfolio'], (old) => {
         const list = Array.isArray(old) ? old : []
         return list.map((w) => (w?.id === updated?.id ? { ...w, ...updated } : w))
@@ -1874,7 +1759,19 @@ export default function Admin() {
       resetEditWorkImages()
     },
     onError: (e) => setToast({ type: 'error', text: e?.message || 'Failed to update work.' }),
-    onSettled: () => setSavingWorkId(null),
+    onSettled: (_data, _error, variables) => {
+      const id = variables?.id
+      setSavingWorkId(null)
+      if (id) {
+        window.setTimeout(() => {
+          setWorkUploadProgress((prev) => {
+            const next = { ...prev }
+            delete next[id]
+            return next
+          })
+        }, 650)
+      }
+    },
   })
 
   const [newItem, setNewItem] = useState({
@@ -2015,7 +1912,13 @@ export default function Admin() {
     fd.append('beforeImage', newItem.before)
     fd.append('afterImage', newItem.after)
     try {
-      await createMutation.mutateAsync(fd)
+      await createMutation.mutateAsync({
+        formData: fd,
+        onUploadProgress: (event) => {
+          const percent = getUploadPercent(event)
+          if (percent !== null) setCreateUploadProgress(percent)
+        },
+      })
       resetNewWorkForm(e.target)
     } catch (err) {
       setToast({ type: 'error', text: err?.message || 'Failed to add item.' })
@@ -2182,6 +2085,11 @@ export default function Admin() {
         .admin-upload-action:hover { background: rgba(0,0,0,0.72); }
         .admin-upload-action { pointer-events: auto; }
         .admin-upload-chip { position: absolute; left: 12px; bottom: 12px; z-index: 2; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(0,0,0,0.40); color: rgba(255,255,255,0.92); font-size: 12px; letter-spacing: 0.4px; pointer-events: none; }
+        .admin-upload-progress { width: min(100%, 420px); display: grid; gap: 8px; color: rgba(255,255,255,0.86); font-size: 12px; }
+        .admin-upload-progress__meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .admin-upload-progress__meta strong { color: #c8902a; font-size: 13px; }
+        .admin-upload-progress__track { height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.08); }
+        .admin-upload-progress__bar { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #c8902a, #f2c86d); transition: width 180ms ease; }
         .admin-cat-row { border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; background: rgba(10,10,10,0.40); display: flex; justify-content: space-between; gap: 12px; }
         .admin-cat-left { flex: 1; min-width: 0; display: flex; gap: 12px; align-items: flex-start; }
         .admin-cat-text { flex: 1; min-width: 0; display: grid; gap: 6px; }
@@ -2412,6 +2320,7 @@ export default function Admin() {
                         <div className="admin-work-actions">
                           {editingWorkId === item.id ? (
                             <>
+                              <UploadProgressBar value={workUploadProgress[item.id]} />
                               <div className="admin-actions-row" style={{ marginTop: 'auto' }}>
                                 <button
                                   type="button"
@@ -2427,11 +2336,24 @@ export default function Admin() {
                                     fd.append('description', editWorkForm.description || '')
                                     if (editWorkBeforeFile) fd.append('before', editWorkBeforeFile)
                                     if (editWorkAfterFile) fd.append('after', editWorkAfterFile)
-                                    updateWorkMutation.mutate({ id: item.id, data: fd })
+                                    updateWorkMutation.mutate({
+                                      id: item.id,
+                                      data: fd,
+                                      onUploadProgress: (event) => {
+                                        const percent = getUploadPercent(event)
+                                        if (percent !== null) {
+                                          setWorkUploadProgress((prev) => ({ ...prev, [item.id]: percent }))
+                                        }
+                                      },
+                                    })
                                   }}
                                   disabled={updateWorkMutation.isPending || isEditBeforeProcessing || isEditAfterProcessing}
                                 >
-                                  {isEditBeforeProcessing || isEditAfterProcessing ? 'Processing…' : item.id === savingWorkId ? 'Saving…' : 'Save'}
+                                  {isEditBeforeProcessing || isEditAfterProcessing
+                                    ? 'Processing…'
+                                    : item.id === savingWorkId
+                                      ? `Uploading ${workUploadProgress[item.id] ?? 0}%`
+                                      : 'Save'}
                                 </button>
                                 <button type="button" style={styles.buttonSubtle} onClick={cancelEditWork}>
                                   Cancel
@@ -2505,7 +2427,7 @@ export default function Admin() {
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ fontSize: 16, fontWeight: 600 }}>Upload</div>
-                    <div style={{ color: '#bdbdbd', fontSize: 12 }}>Photos and videos are optimized automatically before upload</div>
+                    <div style={{ color: '#bdbdbd', fontSize: 12 }}>Photos are optimized before upload. Videos upload directly.</div>
                   </div>
 
                   <div className="admin-grid-2">
@@ -2577,7 +2499,7 @@ export default function Admin() {
                               <Icon name="upload" />
                             </div>
                             <div className="admin-upload-title">Click to upload Before media</div>
-                            <div className="admin-upload-sub">photos or video, including iPhone .MOV • videos are compressed automatically</div>
+                            <div className="admin-upload-sub">photos or video, including iPhone .MOV</div>
                           </div>
                         )}
 
@@ -2631,7 +2553,7 @@ export default function Admin() {
                               <Icon name="image" />
                             </div>
                             <div className="admin-upload-title">Click to upload After media</div>
-                            <div className="admin-upload-sub">photos or video, including iPhone .MOV • videos are compressed automatically</div>
+                            <div className="admin-upload-sub">photos or video, including iPhone .MOV</div>
                           </div>
                         )}
 
@@ -2658,7 +2580,8 @@ export default function Admin() {
                     </Field>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                    <UploadProgressBar value={createUploadProgress} />
                     <button
                       type="submit"
                       style={styles.button}
@@ -2673,7 +2596,11 @@ export default function Admin() {
                         !newItem.after
                       }
                     >
-                      {isBeforeProcessing || isAfterProcessing ? 'Processing…' : createMutation.isPending ? 'Uploading…' : 'Add to Portfolio'}
+                      {isBeforeProcessing || isAfterProcessing
+                        ? 'Processing…'
+                        : createMutation.isPending
+                          ? `Uploading ${createUploadProgress ?? 0}%`
+                          : 'Add to Portfolio'}
                     </button>
                   </div>
                 </form>

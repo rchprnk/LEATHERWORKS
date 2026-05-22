@@ -7,7 +7,8 @@ import Portfolio from './pages/portfolio.jsx'
 import Admin from './pages/admin.jsx'
 import Contact from './pages/contact.jsx'
 import Reviews from './pages/reviews.jsx'
-import { SiteDataProvider, useSiteData } from './context/SiteDataContext.jsx'
+import { SiteDataProvider } from './context/SiteDataContext.jsx'
+import { useSiteData } from './context/siteData.js'
 
 function FloatingSocials() {
   const { contact } = useSiteData()

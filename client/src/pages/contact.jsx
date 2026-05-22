@@ -1,4 +1,4 @@
-import { useSiteData } from '../context/SiteDataContext.jsx'
+import { useSiteData } from '../context/siteData.js'
 
 const STUDIO_PHOTO = 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1600&q=80'
 

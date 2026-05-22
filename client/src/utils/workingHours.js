@@ -43,7 +43,7 @@ export function parseWorkingHours(value) {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const match = line.match(/^([^:]+):\s*(.+)$/)
+      const match = line.match(/^([^:]+):\s*(.*)$/)
       if (!match) return null
       const day = dayFromName(match[1])
       if (!day) return null
@@ -72,7 +72,7 @@ export function serializeWorkingHours(hoursMap) {
   const source = hoursMap || createDefaultWorkingHoursMap()
   return WORKING_HOURS_DAYS
     .map((day) => {
-      const time = String(source[day.key] || '').trim() || 'Closed'
+      const time = source[day.key] == null ? '' : String(source[day.key]).trim()
       return `${day.label}: ${time}`
     })
     .join('\n')
@@ -82,6 +82,6 @@ export function getWorkingHoursRows(value) {
   const hoursMap = parseWorkingHours(value)
   return WORKING_HOURS_DAYS.map((day) => ({
     ...day,
-    time: String(hoursMap[day.key] || '').trim() || 'Closed',
+    time: hoursMap[day.key] == null ? '' : String(hoursMap[day.key]).trim(),
   }))
 }

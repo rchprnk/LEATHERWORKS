@@ -50,6 +50,70 @@ function captureVideoPoster(video) {
   }
 }
 
+function waitForVideoEvent(video, eventName, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'))
+      return
+    }
+
+    const cleanup = () => {
+      video.removeEventListener(eventName, handleEvent)
+      video.removeEventListener('error', handleError)
+      signal?.removeEventListener('abort', handleAbort)
+    }
+    const handleEvent = () => {
+      cleanup()
+      resolve()
+    }
+    const handleError = () => {
+      cleanup()
+      reject(new Error(`Failed to load video ${eventName}.`))
+    }
+    const handleAbort = () => {
+      cleanup()
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+
+    video.addEventListener(eventName, handleEvent, { once: true })
+    video.addEventListener('error', handleError, { once: true })
+    signal?.addEventListener('abort', handleAbort, { once: true })
+  })
+}
+
+async function capturePosterFromSource(src, signal) {
+  if (!src || typeof document === 'undefined') return ''
+
+  const video = document.createElement('video')
+  video.crossOrigin = 'anonymous'
+  video.muted = true
+  video.playsInline = true
+  video.preload = 'auto'
+  video.src = src
+
+  try {
+    video.load()
+    await waitForVideoEvent(video, 'loadedmetadata', signal)
+    if (signal?.aborted) return ''
+
+    const targetTime = Number.isFinite(video.duration) && video.duration > 0.2 ? 0.1 : 0
+    if (Math.abs(video.currentTime - targetTime) > 0.01) {
+      video.currentTime = targetTime
+      await waitForVideoEvent(video, 'seeked', signal)
+    } else if (video.readyState < 2) {
+      await waitForVideoEvent(video, 'loadeddata', signal)
+    }
+
+    if (signal?.aborted) return ''
+    return captureVideoPoster(video)
+  } catch {
+    return ''
+  } finally {
+    video.removeAttribute('src')
+    video.load()
+  }
+}
+
 export function SmartVideo({
   src,
   className,
@@ -67,6 +131,19 @@ export function SmartVideo({
   const [posterState, setPosterState] = useState({ src: '', value: '' })
   const shouldLoad = eager || isVisible
   const poster = posterState.src === src ? posterState.value : ''
+
+  useEffect(() => {
+    if (!capturePoster || !shouldLoad || !src || poster) return undefined
+
+    const controller = new AbortController()
+    capturePosterFromSource(src, controller.signal).then((nextPoster) => {
+      if (!controller.signal.aborted && nextPoster) {
+        setPosterState({ src, value: nextPoster })
+      }
+    })
+
+    return () => controller.abort()
+  }, [capturePoster, poster, shouldLoad, src])
 
   const setRefs = useCallback((node) => {
     viewportRef.current = node

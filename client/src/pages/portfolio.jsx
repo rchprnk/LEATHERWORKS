@@ -25,7 +25,7 @@ function PortfolioMedia({ src, alt }) {
         controls
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
       />
     )
   }

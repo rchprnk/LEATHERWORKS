@@ -1,4 +1,5 @@
 import { useSiteData } from '../context/siteData.js'
+import { getWorkingHoursRows } from '../utils/workingHours.js'
 
 const STUDIO_PHOTO = 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1600&q=80'
 
@@ -19,17 +20,13 @@ function getAddressLines(address) {
   return [parts[0], parts.slice(1).join(', ')]
 }
 
-function getWeekdayHours(workingHours) {
-  return String(workingHours || '').replace(/^(mon|monday)\s*[-–]\s*(fri|friday)\s*:?\s*/i, '').trim() || workingHours
-}
-
 export default function Contact() {
   const { contact } = useSiteData()
 
   const whatsappLink = extractWhatsAppLink(contact.whatsapp)
   const mapSrc = getMapSrc(contact.address)
   const addressLines = getAddressLines(contact.address)
-  const weekdayHours = getWeekdayHours(contact.workingHours)
+  const workingHoursRows = getWorkingHoursRows(contact.workingHours)
 
   return (
     <div className="site-shell">
@@ -119,6 +116,10 @@ export default function Contact() {
         .contact-detail {
           display: grid;
           gap: 12px;
+        }
+        .contact-hours-list {
+          display: grid;
+          gap: 4px;
         }
         .contact-detail__heading {
           display: flex;
@@ -270,7 +271,7 @@ export default function Contact() {
                 <div className="contact-info-card__body">
                   <h3>Phone</h3>
                   <a href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`}>{contact.phone}</a>
-                  <p>{weekdayHours}</p>
+                  <p>{workingHoursRows[0]?.time || '9:00 AM - 6:00 PM'}</p>
                 </div>
               </div>
 
@@ -316,8 +317,13 @@ export default function Contact() {
                     </span>
                     <h3>Hours</h3>
                   </div>
-                  <p>Mon - Fri: <span className="contact-accent">{weekdayHours}</span></p>
-                  <p>Sunday: Closed</p>
+                  <div className="contact-hours-list">
+                    {workingHoursRows.map((item) => (
+                      <p key={item.key}>
+                        {item.shortLabel}: <span className="contact-accent">{item.time}</span>
+                      </p>
+                    ))}
+                  </div>
                   <p>Appointments available by message</p>
                 </div>
               </div>

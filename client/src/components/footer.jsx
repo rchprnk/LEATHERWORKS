@@ -1,18 +1,12 @@
 import { useMemo } from 'react'
 import { useSiteData } from '../context/siteData.js'
+import { getWorkingHoursRows } from '../utils/workingHours.js'
 
 export function Footer() {
   const { contact } = useSiteData()
 
   const footerHours = useMemo(() => {
-    const raw = String(contact.workingHours || '').trim()
-    const weekdayTime =
-      raw.replace(/^(mon|monday)\s*[-–]\s*(fri|friday)\s*:?\s*/i, '').trim() || raw
-
-    return [
-      { day: 'Mon - Fri', time: weekdayTime || '9:00 AM - 6:00 PM' },
-      { day: 'Sunday', time: 'Closed' },
-    ]
+    return getWorkingHoursRows(contact.workingHours)
   }, [contact.workingHours])
 
   return (
@@ -54,8 +48,8 @@ export function Footer() {
             <div className="section-kicker">Hours</div>
             <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
               {footerHours.map((item) => (
-                <div key={item.day} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{item.day}</span>
+                <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>{item.shortLabel}</span>
                   <span style={{ color: item.time === 'Closed' ? 'var(--text-secondary)' : 'var(--text-primary)', fontWeight: 600 }}>
                     {item.time}
                   </span>

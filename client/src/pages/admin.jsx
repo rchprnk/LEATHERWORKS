@@ -3,16 +3,25 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff } from 'lucide-react'
 import { SmartVideo } from '../components/media.jsx'
 import api, { getAdminToken, setAdminToken } from '../services/api'
+import { parseWorkingHours, serializeWorkingHours, WORKING_HOURS_WEEKDAYS } from '../utils/workingHours.js'
 
 const UPLOAD_TIMEOUT_MS = 300_000
 const SAVE_TIMEOUT_MS = 30_000
 const WORK_IMAGE_MAX_BYTES = 15 * 1024 * 1024
 const WORK_IMAGE_TARGET_BYTES = Math.floor(14.5 * 1024 * 1024)
+const WORK_VIDEO_MAX_BYTES = 45 * 1024 * 1024
 const LARGE_IMAGE_DIMENSION_LIMIT = 3200
 const LARGE_IMAGE_MIN_DIMENSION = 1600
 const WORK_MEDIA_INPUT_ACCEPT = 'image/*,video/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.bmp,.tif,.tiff,.svg,.mp4,.mov,.m4v,.webm,.ogv,.ogg,.avi,.mkv,.3gp,.3g2,.mpeg,.mpg,.ts,.mts,.m2ts,.hevc,.h265'
 const SUPPORTED_IMAGE_EXT_RE = /\.(jpe?g|png|webp|hei[cf]|avif|gif|bmp|tiff?|svg)$/i
 const SUPPORTED_VIDEO_EXT_RE = /\.(mp4|mov|m4v|webm|ogv|ogg|avi|mkv|3gp|3g2|mpe?g|ts|mts|m2ts|hevc|h265)$/i
+
+function formatFileSize(bytes) {
+  const value = Number(bytes || 0)
+  if (!Number.isFinite(value) || value <= 0) return '0 MB'
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(value >= 10 * 1024 * 1024 ? 0 : 1)} MB`
+  return `${Math.ceil(value / 1024)} KB`
+}
 
 async function loginAdmin(payload) {
   const res = await api.post('/api/auth/login', payload, { timeout: SAVE_TIMEOUT_MS })
@@ -1853,6 +1862,12 @@ export default function Admin() {
   function validateWorkImage(file) {
     if (!file) return { ok: true }
     if (!isSupportedWorkMediaLike(file)) return { ok: false, message: 'Please select a supported photo or video file.' }
+    if (isSupportedVideoLike(file) && file.size > WORK_VIDEO_MAX_BYTES) {
+      return {
+        ok: false,
+        message: `Video is too large (${formatFileSize(file.size)}). Maximum allowed size is ${formatFileSize(WORK_VIDEO_MAX_BYTES)}. Please trim or compress it before uploading.`,
+      }
+    }
     if (!isSupportedVideoLike(file) && file.size > WORK_IMAGE_MAX_BYTES) return { ok: false, message: 'Image is still too large after optimization. Please choose a slightly smaller file.' }
     return { ok: true }
   }
@@ -1946,9 +1961,17 @@ export default function Admin() {
 
   const [contactDraft, setContactDraft] = useState(null)
   const contactForm = contactDraft ?? contactDefaults
+  const contactHours = useMemo(() => {
+    return parseWorkingHours(contactForm.working_hours)
+  }, [contactForm.working_hours])
 
   function updateContactField(field, value) {
     setContactDraft((draft) => ({ ...(draft ?? contactDefaults), [field]: value }))
+  }
+
+  function updateContactHour(dayKey, value) {
+    const nextHours = { ...contactHours, [dayKey]: value }
+    updateContactField('working_hours', serializeWorkingHours(nextHours))
   }
 
   const saveMutation = useMutation({
@@ -2817,16 +2840,23 @@ export default function Admin() {
                       />
                     </Field>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <Field label="Working Hours (Mon–Fri)">
-                        <input
-                          value={contactForm.working_hours}
-                          onChange={(e) => updateContactField('working_hours', e.target.value)}
-                          style={styles.input}
-                          placeholder="9AM - 6PM"
-                        />
-                      </Field>
+                    <Field label="Working Hours">
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(128px, 1fr))', gap: 10, overflowX: 'auto', paddingBottom: 2 }}>
+                        {WORKING_HOURS_WEEKDAYS.map((day) => (
+                          <label key={day.key} style={{ display: 'grid', gap: 6, minWidth: 118 }}>
+                            <span style={{ color: '#bdbdbd', fontSize: 12, fontWeight: 700 }}>{day.label}</span>
+                            <input
+                              value={contactHours[day.key] || ''}
+                              onChange={(e) => updateContactHour(day.key, e.target.value)}
+                              style={{ ...styles.input, minWidth: 0 }}
+                              placeholder="9AM - 6PM"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </Field>
 
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <Field label="WhatsApp Link">
                         <input
                           value={contactForm.messenger_whatsapp}

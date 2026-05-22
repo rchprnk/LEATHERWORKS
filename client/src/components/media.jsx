@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const DEFAULT_VIDEO_ROOT_MARGIN = '700px 0px'
+const VIDEO_POSTER_MAX_SIDE = 960
 
 function useInViewport(rootMargin = DEFAULT_VIDEO_ROOT_MARGIN) {
   const ref = useRef(null)
@@ -37,13 +38,16 @@ function captureVideoPoster(video) {
     const height = video.videoHeight || 0
     if (!width || !height) return ''
 
+    const scale = Math.min(1, VIDEO_POSTER_MAX_SIDE / Math.max(width, height))
+    const outputWidth = Math.max(1, Math.round(width * scale))
+    const outputHeight = Math.max(1, Math.round(height * scale))
     const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
+    canvas.width = outputWidth
+    canvas.height = outputHeight
     const context = canvas.getContext('2d')
     if (!context) return ''
 
-    context.drawImage(video, 0, 0, width, height)
+    context.drawImage(video, 0, 0, outputWidth, outputHeight)
     return canvas.toDataURL('image/jpeg', 0.76)
   } catch {
     return ''

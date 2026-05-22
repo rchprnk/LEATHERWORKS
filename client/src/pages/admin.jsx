@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff } from 'lucide-react'
 import { SmartVideo } from '../components/media.jsx'
 import api, { getAdminToken, setAdminToken } from '../services/api'
-import { parseWorkingHours, serializeWorkingHours, WORKING_HOURS_WEEKDAYS } from '../utils/workingHours.js'
+import { parseWorkingHours, serializeWorkingHours, WORKING_HOURS_DAYS } from '../utils/workingHours.js'
 
 const UPLOAD_TIMEOUT_MS = 300_000
 const SAVE_TIMEOUT_MS = 30_000
@@ -2841,15 +2841,15 @@ export default function Admin() {
                     </Field>
 
                     <Field label="Working Hours">
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(128px, 1fr))', gap: 10, overflowX: 'auto', paddingBottom: 2 }}>
-                        {WORKING_HOURS_WEEKDAYS.map((day) => (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(128px, 1fr))', gap: 10, overflowX: 'auto', paddingBottom: 2 }}>
+                        {WORKING_HOURS_DAYS.map((day) => (
                           <label key={day.key} style={{ display: 'grid', gap: 6, minWidth: 118 }}>
                             <span style={{ color: '#bdbdbd', fontSize: 12, fontWeight: 700 }}>{day.label}</span>
                             <input
                               value={contactHours[day.key] || ''}
                               onChange={(e) => updateContactHour(day.key, e.target.value)}
                               style={{ ...styles.input, minWidth: 0 }}
-                              placeholder="9AM - 6PM"
+                              placeholder={day.key === 'saturday' || day.key === 'sunday' ? 'Closed' : '9AM - 6PM'}
                             />
                           </label>
                         ))}

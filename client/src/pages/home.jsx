@@ -120,51 +120,25 @@ export default function Home() {
           overflow: hidden;
           min-height: 100svh;
           background:
-            linear-gradient(90deg, rgba(17, 13, 11, 0.9) 0%, rgba(17, 13, 11, 0.74) 36%, rgba(17, 13, 11, 0.36) 66%, rgba(17, 13, 11, 0.08) 100%),
+            linear-gradient(90deg, rgba(17, 13, 11, 0.9) 0%, rgba(17, 13, 11, 0.74) 38%, rgba(17, 13, 11, 0.28) 68%, rgba(17, 13, 11, 0.04) 100%),
             url('${HERO_BG}') center/cover no-repeat;
           box-shadow: none;
-          contain: layout paint style;
-          isolation: isolate;
-          transform: translate3d(0, 0, 0);
-        }
-        .hero-shell::before {
-          content: '';
-          position: absolute;
-          width: 42vw;
-          height: 42vw;
-          min-width: 420px;
-          min-height: 420px;
-          left: 0;
-          top: 0;
-          z-index: 0;
-          pointer-events: none;
-          border-radius: 999px;
-          background: radial-gradient(circle, rgba(198, 169, 107, 0.2), rgba(232, 199, 200, 0.08) 38%, transparent 68%);
-          filter: blur(26px);
-          opacity: 0.72;
-          transform: translate3d(calc(var(--mouse-x, 70vw) - 21vw), calc(var(--mouse-y, 44vh) - 21vw), 0);
-          will-change: transform, opacity;
         }
         .hero-grid {
-          position: relative;
-          z-index: 1;
-          width: min(1280px, calc(100vw - 40px));
+          width: min(1160px, calc(100vw - 40px));
           min-height: 100svh;
           margin: 0 auto;
           padding-top: calc(78px + var(--safe-area-top, 0px));
           display: grid;
-          grid-template-columns: minmax(0, 0.86fr) minmax(520px, 1.14fr);
-          gap: clamp(34px, 5vw, 74px);
+          grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
           align-items: center;
-          contain: layout paint;
         }
         .hero-copy {
           padding: clamp(34px, 5vw, 58px);
           display: grid;
           gap: 22px;
           color: #f4eadf;
-          max-width: 600px;
-          min-width: 0;
+          max-width: 640px;
           padding-left: clamp(28px, 4vw, 44px);
           padding-right: clamp(24px, 3vw, 34px);
           border-radius: 30px;
@@ -172,14 +146,12 @@ export default function Home() {
           border: 1px solid rgba(244, 234, 223, 0.1);
           box-shadow: 0 22px 54px rgba(16, 12, 10, 0.16);
           backdrop-filter: blur(5px);
-          transform: translate3d(0, 0, 0);
-          will-change: opacity, transform;
         }
         .hero-copy .section-title {
           color: #fff8f1;
-          max-width: 500px;
+          max-width: 520px;
           text-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
-          font-size: clamp(3.25rem, 4.7vw, 4.95rem);
+          font-size: clamp(3.6rem, 5.2vw, 5.2rem);
         }
         .hero-copy .section-copy {
           color: rgba(255, 246, 236, 0.94);
@@ -208,85 +180,6 @@ export default function Home() {
           width: 44px;
           height: 1px;
           background: linear-gradient(90deg, rgba(198, 169, 107, 0.9), transparent);
-        }
-        .hero-visual {
-          justify-self: end;
-          width: min(100%, 640px);
-          min-width: 0;
-          flex: 0 1 640px;
-          position: relative;
-          padding: clamp(14px, 2vw, 22px);
-          border-radius: 30px;
-          background: linear-gradient(135deg, rgba(244, 234, 223, 0.18), rgba(244, 234, 223, 0.06));
-          border: 1px solid rgba(244, 234, 223, 0.16);
-          box-shadow: 0 30px 78px rgba(11, 8, 6, 0.24);
-          backdrop-filter: blur(12px);
-          transform: translate3d(0, 0, 0);
-          will-change: transform, opacity;
-          contain: layout paint;
-        }
-        .hero-visual__photo {
-          position: relative;
-          overflow: hidden;
-          aspect-ratio: 1.12 / 1;
-          border-radius: 24px;
-          background: rgba(17, 13, 11, 0.34);
-          transform: translate3d(0, 0, 0);
-          will-change: transform;
-        }
-        .hero-visual__photo img {
-          width: 100%;
-          height: 100%;
-          display: block;
-          object-fit: cover;
-          filter: saturate(0.94) contrast(0.98);
-          transform: translate3d(0, 0, 0) scale(1.012);
-          will-change: transform;
-        }
-        .hero-floating-badge {
-          position: absolute;
-          z-index: 2;
-          width: max-content;
-          max-width: none;
-          min-width: max-content;
-          white-space: nowrap;
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          min-height: 48px;
-          padding: 0 18px;
-          border-radius: 999px;
-          color: #fff8f1;
-          background: rgba(17, 13, 11, 0.62);
-          border: 1px solid rgba(244, 234, 223, 0.16);
-          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
-          backdrop-filter: blur(14px);
-          font-size: 0.92rem;
-          font-weight: 700;
-          line-height: 1;
-          transform: translate3d(0, 0, 0);
-          will-change: transform, opacity;
-        }
-        .hero-floating-badge::before {
-          content: '';
-          width: 9px;
-          height: 9px;
-          border-radius: 999px;
-          background: #c6a96b;
-          box-shadow: 0 0 0 5px rgba(198, 169, 107, 0.16);
-          flex: 0 0 auto;
-        }
-        .hero-floating-badge--top {
-          top: clamp(26px, 4vw, 42px);
-          left: clamp(20px, 3vw, 34px);
-        }
-        .hero-floating-badge--middle {
-          right: clamp(18px, 3vw, 30px);
-          top: 48%;
-        }
-        .hero-floating-badge--bottom {
-          left: clamp(24px, 4vw, 44px);
-          bottom: clamp(24px, 4vw, 42px);
         }
         .services-grid {
           display: grid;
@@ -443,7 +336,7 @@ export default function Home() {
           flex-wrap: wrap;
           margin-top: 4px;
         }
-        @media (max-width: 1080px) {
+        @media (max-width: 980px) {
           .hero-grid,
           .services-grid,
           .craft-panel {
@@ -470,19 +363,6 @@ export default function Home() {
             padding-top: calc(90px + var(--safe-area-top, 0px));
             padding-bottom: 42px;
           }
-          .hero-visual {
-            justify-self: stretch;
-            width: 100%;
-            flex-basis: auto;
-          }
-          .hero-floating-badge {
-            position: static;
-            min-width: 0;
-            width: fit-content;
-            max-width: 100%;
-            white-space: normal;
-            margin: 10px 0 0 10px;
-          }
           .hero-copy {
             padding-left: clamp(24px, 5vw, 30px);
             padding-right: clamp(20px, 5vw, 26px);
@@ -495,20 +375,12 @@ export default function Home() {
             font-size: clamp(2.3rem, 11vw, 3.8rem);
           }
         }
-        @media (max-width: 640px) {
-          .hero-shell::before {
-            display: none;
-          }
-          .hero-visual {
-            display: none;
-          }
-        }
       `}</style>
 
       <div className="home-page">
         <section className="hero-shell">
           <div className="hero-grid">
-            <div className="hero-copy">
+            <Reveal className="hero-copy">
               <div className="premium-chip">Leather Bags & Wallets</div>
               <h1 className="section-title">Professional leather restoration</h1>
               <p className="section-copy">
@@ -519,15 +391,7 @@ export default function Home() {
                 <Link className="premium-button-outline" to="/portfolio">View Our Works</Link>
               </div>
               <div className="hero-note">Focused on handbags, wallets, and everyday leather favorites</div>
-            </div>
-            <aside className="hero-visual" aria-label="Leather restoration preview">
-              <div className="hero-visual__photo">
-                <img src={HERO_BG} alt="Restored leather handbag detail" />
-                <span className="hero-floating-badge hero-floating-badge--top">Natural color balance</span>
-                <span className="hero-floating-badge hero-floating-badge--middle">Cleaner premium finish</span>
-                <span className="hero-floating-badge hero-floating-badge--bottom">Careful detail work</span>
-              </div>
-            </aside>
+            </Reveal>
           </div>
         </section>
 

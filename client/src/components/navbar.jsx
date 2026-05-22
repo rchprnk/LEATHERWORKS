@@ -14,28 +14,9 @@ export function Navbar() {
   const location = useLocation()
 
   useEffect(() => {
-    let frame = 0
-    let lastValue = window.scrollY > 24
-
-    const applyScrollState = () => {
-      frame = 0
-      const nextValue = window.scrollY > 24
-      if (nextValue !== lastValue) {
-        lastValue = nextValue
-        setScrolled(nextValue)
-      }
-    }
-
-    const onScroll = () => {
-      if (!frame) frame = window.requestAnimationFrame(applyScrollState)
-    }
-
-    setScrolled(lastValue)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      if (frame) window.cancelAnimationFrame(frame)
-    }
+    const onScroll = () => setScrolled(window.scrollY > 24)
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   useEffect(() => {
@@ -63,8 +44,6 @@ export function Navbar() {
           background: scrolled ? 'rgba(234, 223, 206, 0.94)' : 'rgba(228, 215, 198, 0.86)',
           borderBottom: '1px solid rgba(198, 169, 107, 0.18)',
           backdropFilter: 'blur(18px)',
-          transform: 'translate3d(0, 0, 0)',
-          willChange: 'background, box-shadow',
           transition: 'background 0.25s ease, box-shadow 0.25s ease',
           boxShadow: scrolled ? '0 14px 30px rgba(26, 26, 26, 0.05)' : 'none',
         }}

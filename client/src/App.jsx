@@ -118,39 +118,6 @@ function ScrollToTop() {
   return null
 }
 
-function MouseCssVariables() {
-  useEffect(() => {
-    if (!window.matchMedia('(pointer: fine)').matches) return undefined
-
-    const root = document.documentElement
-    let frame = 0
-    let nextX = window.innerWidth / 2
-    let nextY = window.innerHeight / 2
-
-    const applyMouseVars = () => {
-      frame = 0
-      root.style.setProperty('--mouse-x', `${nextX}px`)
-      root.style.setProperty('--mouse-y', `${nextY}px`)
-    }
-
-    const onPointerMove = (event) => {
-      nextX = event.clientX
-      nextY = event.clientY
-      if (!frame) frame = window.requestAnimationFrame(applyMouseVars)
-    }
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true })
-    applyMouseVars()
-
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove)
-      if (frame) window.cancelAnimationFrame(frame)
-    }
-  }, [])
-
-  return null
-}
-
 function SiteLoadingScreen() {
   return (
     <main className="site-loading" aria-live="polite" aria-busy="true">
@@ -170,7 +137,6 @@ function PublicLayoutContent() {
   return (
     <>
       <ScrollToTop />
-      <MouseCssVariables />
       <Navbar />
       {ready ? (
         <>

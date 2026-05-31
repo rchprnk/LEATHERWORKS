@@ -1536,7 +1536,7 @@ export default function Admin() {
   const [editCategoryForm, setEditCategoryForm] = useState({ name: '', description: '' })
   const [savingCatId, setSavingCatId] = useState(null)
   const [editingWorkId, setEditingWorkId] = useState(null)
-  const [editWorkForm, setEditWorkForm] = useState({ title: '', description: '' })
+  const [editWorkForm, setEditWorkForm] = useState({ title: '', description: '', category: '' })
   const [savingWorkId, setSavingWorkId] = useState(null)
   const [createUploadProgress, setCreateUploadProgress] = useState(null)
   const [workUploadProgress, setWorkUploadProgress] = useState({})
@@ -1900,13 +1900,13 @@ export default function Admin() {
 
   function startEditWork(work) {
     setEditingWorkId(work.id)
-    setEditWorkForm({ title: work.title || '', description: work.description || '' })
+    setEditWorkForm({ title: work.title || '', description: work.description || '', category: work.category || '' })
     resetEditWorkImages()
   }
 
   function cancelEditWork() {
     setEditingWorkId(null)
-    setEditWorkForm({ title: '', description: '' })
+    setEditWorkForm({ title: '', description: '', category: '' })
     resetEditWorkImages()
   }
 
@@ -2317,6 +2317,26 @@ export default function Admin() {
                                 placeholder="Title"
                                 required
                               />
+                              <select
+                                value={editWorkForm.category}
+                                onChange={(e) => setEditWorkForm((s) => ({ ...s, category: e.target.value }))}
+                                style={{ ...styles.input, padding: '10px 12px' }}
+                                required
+                                disabled={categoriesQuery.isLoading || (categoriesQuery.data || []).length === 0}
+                              >
+                                <option value="" disabled>
+                                  {(categoriesQuery.data || []).length === 0 ? 'No categories (add one first)' : 'Select a category…'}
+                                </option>
+                                {editWorkForm.category &&
+                                  !(categoriesQuery.data || []).some((c) => c.name === editWorkForm.category) && (
+                                    <option value={editWorkForm.category}>{editWorkForm.category}</option>
+                                  )}
+                                {(categoriesQuery.data || []).map((c) => (
+                                  <option key={c.id} value={c.name}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                              </select>
                               <textarea
                                 value={editWorkForm.description}
                                 onChange={(e) => setEditWorkForm((s) => ({ ...s, description: e.target.value }))}
@@ -2356,6 +2376,7 @@ export default function Admin() {
                                   onClick={() => {
                                     const fd = new FormData()
                                     fd.append('title', editWorkForm.title)
+                                    fd.append('category', editWorkForm.category)
                                     fd.append('description', editWorkForm.description || '')
                                     if (editWorkBeforeFile) fd.append('before', editWorkBeforeFile)
                                     if (editWorkAfterFile) fd.append('after', editWorkAfterFile)
@@ -2370,7 +2391,7 @@ export default function Admin() {
                                       },
                                     })
                                   }}
-                                  disabled={updateWorkMutation.isPending || isEditBeforeProcessing || isEditAfterProcessing}
+                                  disabled={updateWorkMutation.isPending || isEditBeforeProcessing || isEditAfterProcessing || !editWorkForm.category}
                                 >
                                   {isEditBeforeProcessing || isEditAfterProcessing
                                     ? 'Processing…'
